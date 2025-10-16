@@ -1,29 +1,36 @@
 <script setup>
-import { inject } from 'vue';
+import { inject } from "vue";
 
 const props = defineProps({
   days: {
     type: Array,
-    default: () => []
-  }
+    default: () => [],
+  },
 });
 
-const controller = inject('controller');
+const controller = inject("controller");
 
 if (!controller) {
-  throw new Error('Controller injection missing in WeekGrid');
+  throw new Error("Controller injection missing in WeekGrid");
 }
 
-const openDay = day => {
+const openDay = (day) => {
+  if (day.isFuture) {
+    controller.showToast?.(
+      "Impossible d'ajouter une humeur pour une journée future"
+    );
+    return;
+  }
+
   controller.openMoodModal(day.iso);
 };
 
-const getCardStyle = day => {
+const getCardStyle = (day) => {
   if (!day.entry) {
     return null;
   }
   return {
-    background: `linear-gradient(135deg, var(--color-surface) 0%, ${day.entry.color}10 100%)`
+    background: `linear-gradient(135deg, var(--color-surface) 0%, ${day.entry.color}10 100%)`,
   };
 };
 </script>
@@ -34,10 +41,14 @@ const getCardStyle = day => {
       v-for="day in props.days"
       :key="day.iso"
       class="day-card"
-      :class="{ 'day-card--today': day.isToday }"
+      :class="{
+        'day-card--today': day.isToday,
+        'day-card--disabled': day.isFuture,
+      }"
       :style="getCardStyle(day)"
       role="button"
-      tabindex="0"
+      :tabindex="day.isFuture ? -1 : 0"
+      :aria-disabled="day.isFuture ? 'true' : 'false'"
       @click="openDay(day)"
       @keydown.enter.prevent="openDay(day)"
       @keydown.space.prevent="openDay(day)"
@@ -47,7 +58,11 @@ const getCardStyle = day => {
           <div class="day-card__day">{{ day.dayName }}</div>
           <div class="day-card__date">{{ day.displayDate }}</div>
         </div>
-        <span v-if="day.isToday" style="color: var(--color-primary); font-weight: bold;">Aujourd'hui</span>
+        <span
+          v-if="day.isToday"
+          style="color: var(--color-primary); font-weight: bold"
+          >Aujourd'hui</span
+        >
       </div>
       <div class="day-card__mood">
         <template v-if="day.entry">
@@ -63,7 +78,9 @@ const getCardStyle = day => {
           </div>
         </template>
       </div>
-      <div v-if="day.entry && day.entry.note" class="day-card__note">{{ day.entry.note }}</div>
+      <div v-if="day.entry && day.entry.note" class="day-card__note">
+        {{ day.entry.note }}
+      </div>
     </article>
   </section>
 </template>

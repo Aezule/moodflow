@@ -1,25 +1,27 @@
 <script setup>
-import { computed, inject } from 'vue';
+import { computed, inject } from "vue";
 
 const props = defineProps({
   matrix: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   monthTitle: {
     type: String,
-    default: ''
-  }
+    default: "",
+  },
 });
 
-const controller = inject('controller');
+const controller = inject("controller");
 
 if (!controller) {
-  throw new Error('Controller injection missing in CalendarModal');
+  throw new Error("Controller injection missing in CalendarModal");
 }
 
 const show = computed(() => controller.state.showCalendarModal);
-const flatDays = computed(() => (Array.isArray(props.matrix) ? props.matrix.flat() : []));
+const flatDays = computed(() =>
+  Array.isArray(props.matrix) ? props.matrix.flat() : []
+);
 
 const close = () => {
   controller.closeCalendarModal();
@@ -33,25 +35,35 @@ const nextMonth = () => {
   controller.navigateMonthBy(1);
 };
 
-const selectDay = day => {
+const selectDay = (day) => {
   if (!day || !day.iso) {
+    return;
+  }
+
+  if (day.isFuture) {
+    controller.showToast?.(
+      "Vous ne pouvez pas encore enregistrer cette journée"
+    );
     return;
   }
   controller.focusDate(day.iso);
 };
 
-const dayClasses = day => {
-  const classes = ['calendar-day'];
+const dayClasses = (day) => {
+  const classes = ["calendar-day"];
   if (!day.isCurrentMonth) {
-    classes.push('other-month');
+    classes.push("other-month");
   }
   if (day.isToday) {
-    classes.push('today');
+    classes.push("today");
   }
   if (day.hasMood) {
-    classes.push('has-mood');
+    classes.push("has-mood");
   }
-  return classes.join(' ');
+  if (day.isFuture) {
+    classes.push("disabled");
+  }
+  return classes.join(" ");
 };
 </script>
 
@@ -64,9 +76,13 @@ const dayClasses = day => {
       </div>
       <div class="modal__content">
         <div class="calendar-nav">
-          <button class="btn btn--secondary" @click="prevMonth">← Mois précédent</button>
+          <button class="btn btn--secondary" @click="prevMonth">
+            ← Mois précédent
+          </button>
           <h4>{{ props.monthTitle }}</h4>
-          <button class="btn btn--secondary" @click="nextMonth">Mois suivant →</button>
+          <button class="btn btn--secondary" @click="nextMonth">
+            Mois suivant →
+          </button>
         </div>
         <div class="calendar-grid">
           <div class="calendar-header">
@@ -82,6 +98,7 @@ const dayClasses = day => {
             v-for="day in flatDays"
             :key="`${day.iso}-${day.label}`"
             :class="dayClasses(day)"
+            :aria-disabled="day.isFuture ? 'true' : 'false'"
             @click="selectDay(day)"
           >
             {{ day.label }}
