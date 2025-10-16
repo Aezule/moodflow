@@ -57,30 +57,21 @@ export const dayNames = [
 
 export const shortDayNames = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-const COOKIE_NAME = "moodflow_state_v1";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+const STORAGE_KEY = "moodflow_state_v1";
+const LEGACY_COOKIE_NAME = "moodflow_state_v1";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
-function toBase64(str) {
-  if (typeof window === "undefined" || typeof window.btoa !== "function") {
+function getLocalStorage() {
+  if (!isBrowser()) {
     return null;
   }
   try {
-    if (typeof TextEncoder !== "undefined") {
-      const bytes = new TextEncoder().encode(str);
-      let binary = "";
-      bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-      });
-      return window.btoa(binary);
-    }
-    // Fallback that handles BMP characters only.
-    return window.btoa(unescape(encodeURIComponent(str)));
+    return window.localStorage || null;
   } catch (error) {
-    console.error("Failed to convert to base64", error);
+    console.error("Local storage is not accessible", error);
     return null;
   }
 }
@@ -105,56 +96,46 @@ function fromBase64(encoded) {
   }
 }
 
-function encodeCookiePayload(payload) {
-  if (!isBrowser()) {
-    return null;
-  }
-  try {
-    const json = JSON.stringify(payload);
-    const encoded = toBase64(json);
-    return encoded ? encodeURIComponent(encoded) : null;
-  } catch (error) {
-    console.error("Failed to encode cookie payload", error);
-    return null;
-  }
-}
-
-function decodeCookiePayload(raw) {
-  if (!isBrowser()) {
+function decodeLegacyCookie(raw) {
+  if (!isBrowser() || !raw) {
     return null;
   }
   try {
     const decoded = fromBase64(decodeURIComponent(raw));
     return decoded ? JSON.parse(decoded) : null;
   } catch (error) {
-    console.error("Failed to decode cookie payload", error);
+    console.error("Failed to decode legacy cookie payload", error);
     return null;
   }
 }
 
-export function loadStateFromCookie() {
+function readLegacyCookie() {
   if (!isBrowser()) {
     return null;
   }
 
   const cookie = document.cookie
     .split("; ")
-    .find((row) => row.startsWith(`${COOKIE_NAME}=`));
+    .find((row) => row.startsWith(`${LEGACY_COOKIE_NAME}=`));
 
   if (!cookie) {
     return null;
   }
 
   const raw = cookie.split("=")[1];
-  return decodeCookiePayload(raw);
+  return decodeLegacyCookie(raw);
 }
 
-export function saveStateToCookie(state) {
+function clearLegacyCookie() {
   if (!isBrowser()) {
     return;
   }
 
-  const payload = {
+  document.cookie = `${LEGACY_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+function buildPersistedPayload(state) {
+  return {
     moodEntries: state.moodEntries,
     currentWeekStart: state.currentWeekStart
       ? formatDate(state.currentWeekStart)
@@ -166,13 +147,54 @@ export function saveStateToCookie(state) {
     analyticsView: state.analyticsView,
     analyticsTab: state.analyticsTab,
   };
+}
 
-  const encoded = encodeCookiePayload(payload);
-  if (!encoded) {
+export function loadStateFromStorage() {
+  const storage = getLocalStorage();
+
+  if (storage) {
+    const raw = storage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        console.error("Failed to parse persisted state from local storage", error);
+        storage.removeItem(STORAGE_KEY);
+      }
+    }
+  }
+
+  const legacy = readLegacyCookie();
+  if (legacy) {
+    if (storage) {
+      try {
+        storage.setItem(STORAGE_KEY, JSON.stringify(legacy));
+      } catch (error) {
+        console.error("Failed to migrate legacy cookie to local storage", error);
+      }
+    }
+    clearLegacyCookie();
+    return legacy;
+  }
+
+  return null;
+}
+
+export function saveStateToStorage(state) {
+  const storage = getLocalStorage();
+  if (!storage) {
     return;
   }
 
-  document.cookie = `${COOKIE_NAME}=${encoded}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+  const payload = buildPersistedPayload(state);
+
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.error("Failed to persist state to local storage", error);
+  }
+
+  clearLegacyCookie();
 }
 
 export function getSystemTheme() {

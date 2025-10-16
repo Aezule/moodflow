@@ -21,8 +21,8 @@ import {
   formatDate,
   parseDateFromIso,
   getSystemTheme,
-  loadStateFromCookie,
-  saveStateToCookie,
+  loadStateFromStorage,
+  saveStateToStorage,
   getAnalyticsViews,
   fetchCityForecast,
   computePredictionFromForecast,
@@ -40,7 +40,7 @@ const INSIGHTS_TABS = ["metrics", "prediction"];
 export function createMoodController() {
   const initialTheme = getSystemTheme();
   const state = reactive(createInitialState(initialTheme, true));
-  const persisted = loadStateFromCookie();
+  const persisted = loadStateFromStorage();
 
   if (persisted) {
     if (persisted.moodEntries && typeof persisted.moodEntries === "object") {
@@ -96,7 +96,7 @@ export function createMoodController() {
     loadSampleData(state);
   }
 
-  const persistState = () => saveStateToCookie(state);
+  const persistState = () => saveStateToStorage(state);
 
   persistState();
 
