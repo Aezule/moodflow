@@ -944,6 +944,11 @@ textarea.form-control {
   color: var(--color-btn-primary-text);
 }
 
+.calendar-day.today.has-mood {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text);
+}
+
 .calendar-day.has-mood {
   background: var(--color-bg-3);
 }
