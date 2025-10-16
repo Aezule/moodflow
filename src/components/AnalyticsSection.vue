@@ -16,9 +16,28 @@ const stats = computed(() => props.analytics || {});
 const moodCanvas = ref(null);
 const barCanvas = ref(null);
 
+const selectedPeriod = computed(() => {
+  return controller && controller.state ? controller.state.analyticsPeriod : 'week';
+});
+
 let moodChart = null;
 let barChart = null;
 let stopWatch = null;
+
+const changePeriod = (period) => {
+  if (controller && controller.changeAnalyticsPeriod) {
+    controller.changeAnalyticsPeriod(period);
+  }
+};
+
+const periodTitle = computed(() => {
+  const titles = {
+    week: 'Analytics de la semaine',
+    month: 'Analytics du mois',
+    year: 'Analytics de l\'année'
+  };
+  return titles[selectedPeriod.value] || 'Analytics de la semaine';
+});
 
 const destroyCharts = () => {
   if (moodChart) {
@@ -179,7 +198,32 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="analytics">
-    <h3 class="analytics__title">Analytics de la semaine</h3>
+    <div class="analytics__header">
+      <h3 class="analytics__title">{{ periodTitle }}</h3>
+      <div class="period-switch">
+        <button 
+          class="period-switch__btn" 
+          :class="{ 'period-switch__btn--active': selectedPeriod === 'week' }"
+          @click="changePeriod('week')"
+        >
+          Semaine
+        </button>
+        <button 
+          class="period-switch__btn" 
+          :class="{ 'period-switch__btn--active': selectedPeriod === 'month' }"
+          @click="changePeriod('month')"
+        >
+          Mois
+        </button>
+        <button 
+          class="period-switch__btn" 
+          :class="{ 'period-switch__btn--active': selectedPeriod === 'year' }"
+          @click="changePeriod('year')"
+        >
+          Année
+        </button>
+      </div>
+    </div>
     <div class="analytics__grid">
       <div class="analytics__stats">
         <div class="stat-card">
@@ -192,14 +236,14 @@ onBeforeUnmount(() => {
         <div class="stat-card">
           <div class="stat-card__icon">🌟</div>
           <div class="stat-card__content">
-            <h4>Meilleur jour</h4>
+            <h4>Meilleur {{ selectedPeriod === 'year' ? 'mois' : 'jour' }}</h4>
             <span class="stat-value">{{ stats.bestDayLabel }}</span>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-card__icon">💙</div>
           <div class="stat-card__content">
-            <h4>Jours enregistrés</h4>
+            <h4>{{ selectedPeriod === 'year' ? 'Mois' : 'Jours' }} enregistrés</h4>
             <span class="stat-value">{{ stats.recordedDaysLabel }}</span>
           </div>
         </div>

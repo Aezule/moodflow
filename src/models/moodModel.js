@@ -54,15 +54,55 @@ export function createInitialState(initialTheme = 'light', useSystemTheme = fals
     showCalendarModal: false,
     moodDraft: { mood: null, note: '' },
     toast: { visible: false, message: '' },
-    quote: quotes.neutral[0]
+    quote: quotes.neutral[0],
+    analyticsPeriod: 'week' // 'week', 'month', 'year'
   };
 }
 
 export function loadSampleData(state) {
   const sampleEntries = [
+    // Semaine actuelle
     { date: '2025-10-14', mood: 4, note: 'Belle journée au travail' },
     { date: '2025-10-15', mood: 3, note: 'Journée normale' },
-    { date: '2025-10-16', mood: 5, note: 'Excellent projet terminé !' }
+    { date: '2025-10-16', mood: 5, note: 'Excellent projet terminé !' },
+    
+    // Autres jours du mois d'octobre
+    { date: '2025-10-01', mood: 4, note: 'Bon début de mois' },
+    { date: '2025-10-03', mood: 5, note: 'Super journée' },
+    { date: '2025-10-05', mood: 3, note: 'Journée tranquille' },
+    { date: '2025-10-08', mood: 4, note: 'Bonne ambiance' },
+    { date: '2025-10-10', mood: 2, note: 'Jour difficile' },
+    { date: '2025-10-12', mood: 4, note: 'Journée productive' },
+    
+    // Mois précédents pour tester la vue année
+    { date: '2025-09-15', mood: 4, note: 'Septembre agréable' },
+    { date: '2025-09-20', mood: 5, note: 'Excellent mois' },
+    { date: '2025-09-25', mood: 4, note: 'Bonne période' },
+    
+    { date: '2025-08-10', mood: 5, note: 'Super vacances' },
+    { date: '2025-08-15', mood: 5, note: 'Août génial' },
+    { date: '2025-08-20', mood: 4, note: 'Bel été' },
+    
+    { date: '2025-07-05', mood: 4, note: 'Juillet sympa' },
+    { date: '2025-07-18', mood: 3, note: 'Mois moyen' },
+    
+    { date: '2025-06-12', mood: 3, note: 'Juin correct' },
+    { date: '2025-06-20', mood: 4, note: 'Bonne fin de mois' },
+    
+    { date: '2025-05-08', mood: 2, note: 'Mai difficile' },
+    { date: '2025-05-15', mood: 3, note: 'Ça va mieux' },
+    
+    { date: '2025-04-10', mood: 4, note: 'Avril agréable' },
+    { date: '2025-04-22', mood: 5, note: 'Super printemps' },
+    
+    { date: '2025-03-05', mood: 3, note: 'Mars tranquille' },
+    { date: '2025-03-18', mood: 4, note: 'Bonne période' },
+    
+    { date: '2025-02-14', mood: 5, note: 'Belle journée' },
+    { date: '2025-02-20', mood: 4, note: 'Février sympa' },
+    
+    { date: '2025-01-10', mood: 4, note: 'Bonne année' },
+    { date: '2025-01-25', mood: 3, note: 'Janvier correct' }
   ];
 
   sampleEntries.forEach(entry => {
@@ -142,7 +182,72 @@ export function getWeekEntries(state) {
     }));
 }
 
+export function getMonthEntries(state) {
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  
+  const entries = [];
+  for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+    const iso = formatDate(d);
+    const entry = state.moodEntries[iso];
+    if (entry) {
+      entries.push({
+        date: iso,
+        dayName: d.getDate().toString(),
+        ...entry
+      });
+    }
+  }
+  return entries;
+}
+
+export function getYearEntries(state) {
+  const today = new Date();
+  const year = today.getFullYear();
+  
+  const entries = [];
+  for (let month = 0; month < 12; month++) {
+    const monthEntries = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const iso = formatDate(date);
+      const entry = state.moodEntries[iso];
+      if (entry) {
+        monthEntries.push(entry);
+      }
+    }
+    
+    if (monthEntries.length > 0) {
+      const avgMood = monthEntries.reduce((sum, e) => sum + e.mood, 0) / monthEntries.length;
+      entries.push({
+        month: month,
+        monthName: new Date(year, month, 1).toLocaleDateString('fr-FR', { month: 'short' }),
+        averageMood: avgMood,
+        count: monthEntries.length
+      });
+    }
+  }
+  return entries;
+}
+
 export function computeAnalytics(state, weekDays) {
+  const period = state.analyticsPeriod || 'week';
+  
+  if (period === 'week') {
+    return computeWeekAnalytics(state, weekDays);
+  } else if (period === 'month') {
+    return computeMonthAnalytics(state);
+  } else if (period === 'year') {
+    return computeYearAnalytics(state);
+  }
+  
+  return computeWeekAnalytics(state, weekDays);
+}
+
+function computeWeekAnalytics(state, weekDays) {
   const entries = getWeekEntries(state);
 
   if (entries.length === 0) {
@@ -152,7 +257,8 @@ export function computeAnalytics(state, weekDays) {
       bestDayLabel: '-',
       recordedDaysLabel: '0/7',
       summary: 'Ajoutez vos humeurs pour voir un résumé personnalisé de votre semaine.',
-      chartData: buildChartData(weekDays, entries)
+      chartData: buildChartData(weekDays, entries),
+      period: 'week'
     };
   }
 
@@ -171,7 +277,77 @@ export function computeAnalytics(state, weekDays) {
     bestDayLabel,
     recordedDaysLabel: `${entries.length}/7`,
     summary: generateWeekSummary(entries, average),
-    chartData: buildChartData(weekDays, entries)
+    chartData: buildChartData(weekDays, entries),
+    period: 'week'
+  };
+}
+
+function computeMonthAnalytics(state) {
+  const entries = getMonthEntries(state);
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+  if (entries.length === 0) {
+    return {
+      hasData: false,
+      averageLabel: '-',
+      bestDayLabel: '-',
+      recordedDaysLabel: `0/${daysInMonth}`,
+      summary: 'Ajoutez vos humeurs pour voir un résumé personnalisé du mois.',
+      chartData: buildMonthChartData(state, entries),
+      period: 'month'
+    };
+  }
+
+  const average = entries.reduce((sum, entry) => sum + entry.mood, 0) / entries.length;
+  const averageMood = moodLevels[Math.round(average)];
+
+  const bestEntry = entries.reduce((best, current) => (current.mood > best.mood ? current : best));
+  const bestDate = parseDateFromIso(bestEntry.date);
+  const bestDayLabel = `${moodLevels[bestEntry.mood].emoji} ${bestDate.getDate()} ${bestDate.toLocaleDateString('fr-FR', {
+    month: 'long'
+  })}`;
+
+  return {
+    hasData: true,
+    averageLabel: `${averageMood.emoji} ${averageMood.label}`,
+    bestDayLabel,
+    recordedDaysLabel: `${entries.length}/${daysInMonth}`,
+    summary: generateMonthSummary(entries, average, daysInMonth),
+    chartData: buildMonthChartData(state, entries),
+    period: 'month'
+  };
+}
+
+function computeYearAnalytics(state) {
+  const entries = getYearEntries(state);
+
+  if (entries.length === 0) {
+    return {
+      hasData: false,
+      averageLabel: '-',
+      bestDayLabel: '-',
+      recordedDaysLabel: '0 mois',
+      summary: 'Ajoutez vos humeurs pour voir un résumé personnalisé de l\'année.',
+      chartData: buildYearChartData(entries),
+      period: 'year'
+    };
+  }
+
+  const average = entries.reduce((sum, entry) => sum + entry.averageMood, 0) / entries.length;
+  const averageMood = moodLevels[Math.round(average)];
+
+  const bestMonth = entries.reduce((best, current) => (current.averageMood > best.averageMood ? current : best));
+  const bestDayLabel = `${moodLevels[Math.round(bestMonth.averageMood)].emoji} ${bestMonth.monthName}`;
+
+  return {
+    hasData: true,
+    averageLabel: `${averageMood.emoji} ${averageMood.label}`,
+    bestDayLabel,
+    recordedDaysLabel: `${entries.length} mois`,
+    summary: generateYearSummary(entries, average),
+    chartData: buildYearChartData(entries),
+    period: 'year'
   };
 }
 
@@ -205,6 +381,54 @@ function generateWeekSummary(entries, average) {
   );
 }
 
+function generateMonthSummary(entries, average, daysInMonth) {
+  const averageRounded = Math.round(average);
+  const summaryIntro = `Ce mois-ci, vous avez enregistré ${entries.length} jour${entries.length > 1 ? 's' : ''} sur ${daysInMonth}. `;
+
+  if (averageRounded >= 4) {
+    return (
+      summaryIntro +
+      `Excellent mois ! Votre humeur moyenne était ${moodLevels[averageRounded].label.toLowerCase()}. Continuez sur cette lancée ! 🌟`
+    );
+  }
+
+  if (averageRounded === 3) {
+    return (
+      summaryIntro +
+      `Mois équilibré avec une humeur ${moodLevels[averageRounded].label.toLowerCase()}. Il y a eu des hauts et des bas, c'est normal. 🌈`
+    );
+  }
+
+  return (
+    summaryIntro +
+    `Le mois a été difficile avec une humeur moyenne ${moodLevels[averageRounded].label.toLowerCase()}. N'hésitez pas à prendre soin de vous. 💙`
+  );
+}
+
+function generateYearSummary(entries, average) {
+  const averageRounded = Math.round(average);
+  const summaryIntro = `Cette année, vous avez enregistré des humeurs sur ${entries.length} mois. `;
+
+  if (averageRounded >= 4) {
+    return (
+      summaryIntro +
+      `Excellente année ! Votre humeur moyenne était ${moodLevels[averageRounded].label.toLowerCase()}. Bravo pour cette belle année ! 🌟`
+    );
+  }
+
+  if (averageRounded === 3) {
+    return (
+      summaryIntro +
+      `Année équilibrée avec une humeur ${moodLevels[averageRounded].label.toLowerCase()}. Il y a eu des hauts et des bas, c'est la vie. 🌈`
+    );
+  }
+
+  return (
+    summaryIntro +
+    `L'année a été difficile avec une humeur moyenne ${moodLevels[averageRounded].label.toLowerCase()}. Prenez soin de vous. 💙`
+  );
+}
+
 function buildChartData(weekDays, entries) {
   const lineLabels = weekDays.map(day => day.shortName);
   const lineData = weekDays.map(day => (day.entry ? day.entry.mood : null));
@@ -220,6 +444,88 @@ function buildChartData(weekDays, entries) {
       labels: lineLabels,
       data: lineData,
       colors: lineColors
+    },
+    bar: {
+      labels: Object.values(moodLevels).map(level => level.emoji),
+      data: Object.keys(moodCounts).map(key => moodCounts[Number(key)]),
+      backgroundColors: Object.values(moodLevels).map(level => `${level.color}80`),
+      borderColors: Object.values(moodLevels).map(level => level.color)
+    }
+  };
+}
+
+function buildMonthChartData(state, entries) {
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  
+  const lineLabels = [];
+  const lineData = [];
+  const lineColors = [];
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    lineLabels.push(day.toString());
+    const date = new Date(today.getFullYear(), today.getMonth(), day);
+    const iso = formatDate(date);
+    const entry = state.moodEntries[iso];
+    
+    if (entry) {
+      lineData.push(entry.mood);
+      lineColors.push(moodLevels[entry.mood].color);
+    } else {
+      lineData.push(null);
+      lineColors.push('#cccccc');
+    }
+  }
+
+  const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  entries.forEach(entry => {
+    moodCounts[entry.mood] += 1;
+  });
+
+  return {
+    line: {
+      labels: lineLabels,
+      data: lineData,
+      colors: lineColors
+    },
+    bar: {
+      labels: Object.values(moodLevels).map(level => level.emoji),
+      data: Object.keys(moodCounts).map(key => moodCounts[Number(key)]),
+      backgroundColors: Object.values(moodLevels).map(level => `${level.color}80`),
+      borderColors: Object.values(moodLevels).map(level => level.color)
+    }
+  };
+}
+
+function buildYearChartData(entries) {
+  const allMonths = [];
+  for (let i = 0; i < 12; i++) {
+    allMonths.push({
+      monthName: new Date(2000, i, 1).toLocaleDateString('fr-FR', { month: 'short' }),
+      averageMood: null,
+      color: '#cccccc'
+    });
+  }
+
+  entries.forEach(entry => {
+    allMonths[entry.month] = {
+      monthName: entry.monthName,
+      averageMood: entry.averageMood,
+      color: moodLevels[Math.round(entry.averageMood)].color
+    };
+  });
+
+  const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  entries.forEach(entry => {
+    const rounded = Math.round(entry.averageMood);
+    moodCounts[rounded] += 1;
+  });
+
+  return {
+    line: {
+      labels: allMonths.map(m => m.monthName),
+      data: allMonths.map(m => m.averageMood),
+      colors: allMonths.map(m => m.color)
     },
     bar: {
       labels: Object.values(moodLevels).map(level => level.emoji),
@@ -365,4 +671,10 @@ export function getEncouragementMessage(state) {
   }
 
   return null;
+}
+
+export function setAnalyticsPeriod(state, period) {
+  if (['week', 'month', 'year'].includes(period)) {
+    state.analyticsPeriod = period;
+  }
 }

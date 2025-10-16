@@ -19,7 +19,8 @@ import {
   getEncouragementMessage,
   getWeekEntries,
   parseDateFromIso,
-  getSystemTheme
+  getSystemTheme,
+  setAnalyticsPeriod
 } from '../models/moodModel';
 
 export function createMoodController() {
@@ -208,6 +209,10 @@ export function createMoodController() {
     }
   }
 
+  function changeAnalyticsPeriod(period) {
+    setAnalyticsPeriod(state, period);
+  }
+
   return {
     state,
     moodLevels,
@@ -232,6 +237,7 @@ export function createMoodController() {
     closeCalendarModal,
     focusDate,
     toggleTheme: toggleThemePreference,
-    showToast
+    showToast,
+    changeAnalyticsPeriod
   };
 }
