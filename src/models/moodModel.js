@@ -34,13 +34,21 @@ export const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Sam
 
 export const shortDayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-export function createInitialState() {
+export function getSystemTheme() {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+export function createInitialState(initialTheme = 'light', useSystemTheme = false) {
   const today = new Date();
   return {
     moodEntries: {},
     currentWeekStart: getMonday(today),
     currentMonth: new Date(today.getFullYear(), today.getMonth(), 1),
-    theme: 'light',
+    theme: initialTheme,
+    useSystemTheme,
     selectedDate: null,
     showMoodModal: false,
     showCalendarModal: false,

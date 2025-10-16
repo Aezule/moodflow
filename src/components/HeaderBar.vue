@@ -7,7 +7,7 @@ if (!controller) {
   throw new Error('Controller injection missing in HeaderBar');
 }
 
-const themeIcon = computed(() => (controller.state.theme === 'light' ? '🌙' : '☀️'));
+const themeIcon = computed(() => (controller.state.theme === 'dark' ? '🌙' : '☀️'));
 
 const toggleTheme = () => {
   controller.toggleTheme();

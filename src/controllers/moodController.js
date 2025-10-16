@@ -18,11 +18,13 @@ import {
   ensureWeekStartForDate,
   getEncouragementMessage,
   getWeekEntries,
-  parseDateFromIso
+  parseDateFromIso,
+  getSystemTheme
 } from '../models/moodModel';
 
 export function createMoodController() {
-  const state = reactive(createInitialState());
+  const initialTheme = getSystemTheme();
+  const state = reactive(createInitialState(initialTheme, true));
   loadSampleData(state);
 
   const quote = ref(state.quote);
@@ -35,6 +37,35 @@ export function createMoodController() {
   const monthTitle = computed(() => getMonthTitle(state));
   const selectedDateLabel = computed(() => getSelectedDateLabel(state));
   const hasSelectedEntry = computed(() => Boolean(state.selectedDate && state.moodEntries[state.selectedDate]));
+
+  let systemThemeQuery = null;
+  let removeSystemThemeListener = null;
+
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    // Keep state.theme aligned with the operating system when the system option is active.
+    const applySystemTheme = event => {
+      if (state.useSystemTheme) {
+        state.theme = event.matches ? 'dark' : 'light';
+      }
+    };
+
+    applySystemTheme(systemThemeQuery);
+
+    if (typeof systemThemeQuery.addEventListener === 'function') {
+      systemThemeQuery.addEventListener('change', applySystemTheme);
+      removeSystemThemeListener = () => systemThemeQuery.removeEventListener('change', applySystemTheme);
+    } else if (typeof systemThemeQuery.addListener === 'function') {
+      systemThemeQuery.addListener(applySystemTheme);
+      removeSystemThemeListener = () => systemThemeQuery.removeListener(applySystemTheme);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (removeSystemThemeListener) {
+        removeSystemThemeListener();
+      }
+    });
+  }
 
   watch(
     () => state.theme,
@@ -168,7 +199,13 @@ export function createMoodController() {
   }
 
   function toggleThemePreference() {
-    toggleTheme(state);
+    if (state.useSystemTheme) {
+      state.useSystemTheme = false;
+      toggleTheme(state);
+    } else {
+      state.useSystemTheme = true;
+      state.theme = getSystemTheme();
+    }
   }
 
   return {
