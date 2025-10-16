@@ -4,11 +4,11 @@ import {
   createInitialState,
   loadSampleData,
   getWeekDays,
-  computeAnalytics,
   pickQuote,
   getWeekTitle,
   getCalendarMatrix,
   getMonthTitle,
+  getMonday,
   navigateWeek,
   navigateMonth,
   toggleTheme,
@@ -19,24 +19,110 @@ import {
   getEncouragementMessage,
   getWeekEntries,
   parseDateFromIso,
-  getSystemTheme
+  getSystemTheme,
+  loadStateFromCookie,
+  saveStateToCookie,
+  getAnalyticsViews,
+  fetchCityForecast,
+  computePredictionFromForecast
 } from '../models/moodModel';
+
+const ANALYTICS_OPTIONS = [
+  { value: 'week', label: 'Semaine' },
+  { value: 'month', label: 'Mois' },
+  { value: 'year', label: 'Année' }
+];
+
+const INSIGHTS_TABS = ['metrics', 'prediction'];
 
 export function createMoodController() {
   const initialTheme = getSystemTheme();
   const state = reactive(createInitialState(initialTheme, true));
-  loadSampleData(state);
+  const persisted = loadStateFromCookie();
+
+  if (persisted) {
+    if (persisted.moodEntries && typeof persisted.moodEntries === 'object') {
+      state.moodEntries = { ...persisted.moodEntries };
+    }
+
+    if (persisted.currentWeekStart) {
+      const parsedWeek = parseDateFromIso(persisted.currentWeekStart);
+      if (parsedWeek) {
+        state.currentWeekStart = getMonday(parsedWeek);
+      }
+    }
+
+    if (persisted.currentMonth) {
+      const parsedMonth = parseDateFromIso(persisted.currentMonth);
+      if (parsedMonth) {
+        state.currentMonth = new Date(parsedMonth.getFullYear(), parsedMonth.getMonth(), 1);
+      }
+    }
+
+    if (typeof persisted.theme === 'string') {
+      state.theme = persisted.theme;
+    }
+
+    if (typeof persisted.useSystemTheme === 'boolean') {
+      state.useSystemTheme = persisted.useSystemTheme;
+    }
+
+    if (typeof persisted.analyticsView === 'string' && ANALYTICS_OPTIONS.some(option => option.value === persisted.analyticsView)) {
+      state.analyticsView = persisted.analyticsView;
+    }
+
+    if (typeof persisted.analyticsTab === 'string' && INSIGHTS_TABS.includes(persisted.analyticsTab)) {
+      state.analyticsTab = persisted.analyticsTab;
+    }
+
+    if (typeof persisted.predictionCity === 'string') {
+      state.prediction.city = persisted.predictionCity;
+    }
+  } else {
+    loadSampleData(state);
+  }
+
+  const persistState = () => saveStateToCookie(state);
+
+  persistState();
 
   const quote = ref(state.quote);
 
   const weekDays = computed(() => getWeekDays(state));
-  const analytics = computed(() => computeAnalytics(state, weekDays.value));
+  const analyticsViews = computed(() => getAnalyticsViews(state));
+  const analyticsRange = computed(() => state.analyticsView);
+  const analytics = computed(() => {
+    const views = analyticsViews.value;
+    return views[state.analyticsView] || views.week;
+  });
+  const analyticsTitle = computed(() => {
+    switch (state.analyticsView) {
+      case 'month':
+        return 'Analytics du mois';
+      case 'year':
+        return "Analytics de l'année";
+      default:
+        return 'Analytics de la semaine';
+    }
+  });
   const weekSummary = computed(() => analytics.value.summary);
+  const summaryTitle = computed(() => {
+    switch (state.analyticsView) {
+      case 'month':
+        return 'Résumé du mois';
+      case 'year':
+        return "Résumé de l'année";
+      default:
+        return 'Résumé de la semaine';
+    }
+  });
   const weekTitle = computed(() => getWeekTitle(state));
   const calendarMatrix = computed(() => getCalendarMatrix(state));
   const monthTitle = computed(() => getMonthTitle(state));
   const selectedDateLabel = computed(() => getSelectedDateLabel(state));
   const hasSelectedEntry = computed(() => Boolean(state.selectedDate && state.moodEntries[state.selectedDate]));
+  const activeInsightsTab = computed(() => state.analyticsTab);
+  const prediction = computed(() => state.prediction);
 
   let systemThemeQuery = null;
   let removeSystemThemeListener = null;
@@ -72,6 +158,7 @@ export function createMoodController() {
     theme => {
       document.documentElement.setAttribute('data-color-scheme', theme);
       document.body.dataset.theme = theme;
+      persistState();
     },
     { immediate: true }
   );
@@ -82,6 +169,7 @@ export function createMoodController() {
       const newQuote = pickQuote(entries);
       quote.value = newQuote;
       state.quote = newQuote;
+      persistState();
     },
     { immediate: true, deep: true }
   );
@@ -148,6 +236,7 @@ export function createMoodController() {
       mood: state.moodDraft.mood,
       note: state.moodDraft.note
     });
+    persistState();
 
     const dateLabel = getSelectedDateLabel(state);
     closeMoodModal();
@@ -168,16 +257,19 @@ export function createMoodController() {
     }
 
     deleteMood(state, state.selectedDate);
+    persistState();
     closeMoodModal();
     showToast('Humeur supprimée');
   }
 
   function navigateWeekBy(direction) {
     navigateWeek(state, direction);
+    persistState();
   }
 
   function navigateMonthBy(direction) {
     navigateMonth(state, direction);
+    persistState();
   }
 
   function openCalendarModal() {
@@ -206,6 +298,58 @@ export function createMoodController() {
       state.useSystemTheme = true;
       state.theme = getSystemTheme();
     }
+    persistState();
+  }
+
+  function setAnalyticsRange(range) {
+    if (ANALYTICS_OPTIONS.some(option => option.value === range)) {
+      state.analyticsView = range;
+      persistState();
+    }
+  }
+
+  function setInsightsTab(tab) {
+    if (INSIGHTS_TABS.includes(tab)) {
+      state.analyticsTab = tab;
+      persistState();
+    }
+  }
+
+  function setPredictionCity(city) {
+    state.prediction.city = city;
+    persistState();
+  }
+
+  async function refreshPrediction() {
+    const city = state.prediction.city.trim();
+    if (!city) {
+      showToast('Saisissez une ville pour lancer la prédiction');
+      return;
+    }
+
+    state.prediction.status = 'loading';
+    state.prediction.error = null;
+
+    try {
+      const forecast = await fetchCityForecast(city);
+      const insights = computePredictionFromForecast(state, forecast);
+
+      state.prediction.status = 'success';
+      state.prediction.cityLabel = forecast.cityLabel;
+      state.prediction.chart = insights.points;
+      state.prediction.reasons = insights.reasons;
+      state.prediction.baseline = insights.baseline;
+      state.prediction.lastUpdated = new Date().toISOString();
+      persistState();
+    } catch (error) {
+      console.error(error);
+      state.prediction.status = 'error';
+      state.prediction.error = error instanceof Error ? error.message : 'Erreur inattendue';
+      state.prediction.chart = null;
+      state.prediction.reasons = [];
+      state.prediction.baseline = null;
+      state.prediction.lastUpdated = null;
+    }
   }
 
   return {
@@ -214,12 +358,18 @@ export function createMoodController() {
     quote,
     weekDays,
     analytics,
+    analyticsTitle,
+    analyticsRange,
+    analyticsOptions: ANALYTICS_OPTIONS,
     weekSummary,
+    summaryTitle,
     weekTitle,
     calendarMatrix,
     monthTitle,
     selectedDateLabel,
     hasSelectedEntry,
+    activeInsightsTab,
+    prediction,
     openMoodModal,
     closeMoodModal,
     setMoodDraftMood,
@@ -232,6 +382,10 @@ export function createMoodController() {
     closeCalendarModal,
     focusDate,
     toggleTheme: toggleThemePreference,
-    showToast
+    showToast,
+    setAnalyticsRange,
+    setInsightsTab,
+    setPredictionCity,
+    refreshPrediction
   };
 }

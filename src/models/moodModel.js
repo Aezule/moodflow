@@ -34,6 +34,122 @@ export const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Sam
 
 export const shortDayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+const COOKIE_NAME = 'moodflow_state_v1';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+function toBase64(str) {
+  if (typeof window === 'undefined' || typeof window.btoa !== 'function') {
+    return null;
+  }
+  try {
+    if (typeof TextEncoder !== 'undefined') {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      bytes.forEach(byte => {
+        binary += String.fromCharCode(byte);
+      });
+      return window.btoa(binary);
+    }
+    // Fallback that handles BMP characters only.
+    return window.btoa(unescape(encodeURIComponent(str)));
+  } catch (error) {
+    console.error('Failed to convert to base64', error);
+    return null;
+  }
+}
+
+function fromBase64(encoded) {
+  if (typeof window === 'undefined' || typeof window.atob !== 'function') {
+    return null;
+  }
+  try {
+    const binary = window.atob(encoded);
+    if (typeof TextDecoder !== 'undefined') {
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    }
+    return decodeURIComponent(escape(binary));
+  } catch (error) {
+    console.error('Failed to decode base64 payload', error);
+    return null;
+  }
+}
+
+function encodeCookiePayload(payload) {
+  if (!isBrowser()) {
+    return null;
+  }
+  try {
+    const json = JSON.stringify(payload);
+    const encoded = toBase64(json);
+    return encoded ? encodeURIComponent(encoded) : null;
+  } catch (error) {
+    console.error('Failed to encode cookie payload', error);
+    return null;
+  }
+}
+
+function decodeCookiePayload(raw) {
+  if (!isBrowser()) {
+    return null;
+  }
+  try {
+    const decoded = fromBase64(decodeURIComponent(raw));
+    return decoded ? JSON.parse(decoded) : null;
+  } catch (error) {
+    console.error('Failed to decode cookie payload', error);
+    return null;
+  }
+}
+
+export function loadStateFromCookie() {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  const cookie = document.cookie
+    .split('; ')
+    .find(row => row.startsWith(`${COOKIE_NAME}=`));
+
+  if (!cookie) {
+    return null;
+  }
+
+  const raw = cookie.split('=')[1];
+  return decodeCookiePayload(raw);
+}
+
+export function saveStateToCookie(state) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const payload = {
+    moodEntries: state.moodEntries,
+    currentWeekStart: state.currentWeekStart ? formatDate(state.currentWeekStart) : null,
+    currentMonth: state.currentMonth ? formatDate(state.currentMonth) : null,
+    theme: state.theme,
+    useSystemTheme: state.useSystemTheme,
+    predictionCity: state.prediction?.city || '',
+    analyticsView: state.analyticsView,
+    analyticsTab: state.analyticsTab
+  };
+
+  const encoded = encodeCookiePayload(payload);
+  if (!encoded) {
+    return;
+  }
+
+  document.cookie = `${COOKIE_NAME}=${encoded}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
 export function getSystemTheme() {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -49,12 +165,24 @@ export function createInitialState(initialTheme = 'light', useSystemTheme = fals
     currentMonth: new Date(today.getFullYear(), today.getMonth(), 1),
     theme: initialTheme,
     useSystemTheme,
+    analyticsView: 'week',
+    analyticsTab: 'metrics',
     selectedDate: null,
     showMoodModal: false,
     showCalendarModal: false,
     moodDraft: { mood: null, note: '' },
     toast: { visible: false, message: '' },
-    quote: quotes.neutral[0]
+    quote: quotes.neutral[0],
+    prediction: {
+      city: '',
+      cityLabel: '',
+      status: 'idle',
+      error: null,
+      chart: null,
+      reasons: [],
+      baseline: null,
+      lastUpdated: null
+    }
   };
 }
 
@@ -83,7 +211,10 @@ export function getMonday(date) {
 }
 
 export function formatDate(date) {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function parseDateFromIso(iso) {
@@ -142,6 +273,253 @@ export function getWeekEntries(state) {
     }));
 }
 
+export function getAllMoodEntries(state) {
+  return Object.entries(state.moodEntries).map(([date, entry]) => {
+    const parsed = parseDateFromIso(date);
+    return {
+      date,
+      ...entry,
+      weekday: parsed ? parsed.getDay() : null
+    };
+  });
+}
+
+export function getMonthDays(state) {
+  const days = [];
+  const base = new Date(state.currentMonth);
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = new Date().toDateString();
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const iso = formatDate(date);
+    const entry = state.moodEntries[iso];
+    const moodData = entry ? moodLevels[entry.mood] : null;
+
+    days.push({
+      iso,
+      label: String(day),
+      dayName: date.toLocaleDateString('fr-FR', { weekday: 'long' }),
+      shortName: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      displayDate: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }),
+      isToday: date.toDateString() === todayStr,
+      entry: entry
+        ? {
+            ...entry,
+            emoji: moodData.emoji,
+            label: moodData.label,
+            color: moodData.color
+          }
+        : null
+    });
+  }
+
+  return days;
+}
+
+export function getMonthEntries(state) {
+  return getMonthDays(state)
+    .filter(day => Boolean(day.entry))
+    .map(day => ({
+      date: day.iso,
+      dayName: day.dayName,
+      ...day.entry
+    }));
+}
+
+function generateMonthSummary(entries, average, totalDays) {
+  const averageRounded = Math.round(average);
+  const summaryIntro = `Ce mois-ci, vous avez enregistré ${entries.length} jour${entries.length > 1 ? 's' : ''} sur ${totalDays}. `;
+
+  if (averageRounded >= 4) {
+    return (
+      summaryIntro +
+      `Tendance très positive avec une humeur ${moodLevels[averageRounded].label.toLowerCase()}. Continuez ainsi ! 🌟`
+    );
+  }
+
+  if (averageRounded === 3) {
+    return (
+      summaryIntro +
+      `Un mois équilibré avec des moments variés. Prenez le temps de célébrer vos réussites et de souffler. 🌈`
+    );
+  }
+
+  return (
+    summaryIntro +
+    `Mois exigeant avec une humeur moyenne ${moodLevels[averageRounded].label.toLowerCase()}. Prenez soin de vous et accordez-vous du repos. 💙`
+  );
+}
+
+export function computeMonthlyAnalytics(state) {
+  const monthDays = getMonthDays(state);
+  const entries = getMonthEntries(state);
+
+  if (entries.length === 0) {
+    return {
+      hasData: false,
+      averageLabel: '-',
+      bestDayLabel: '-',
+      recordedDaysLabel: `0/${monthDays.length}`,
+      summary: 'Ajoutez vos humeurs pour analyser votre mois.',
+      chartData: buildChartData(monthDays, entries, day => day.label)
+    };
+  }
+
+  const average = entries.reduce((sum, entry) => sum + entry.mood, 0) / entries.length;
+  const averageMood = moodLevels[Math.round(average)];
+  const bestEntry = entries.reduce((best, current) => (current.mood > best.mood ? current : best));
+  const bestDate = parseDateFromIso(bestEntry.date);
+  const bestDayLabel = `${moodLevels[bestEntry.mood].emoji} ${bestDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  })}`;
+
+  return {
+    hasData: true,
+    averageLabel: `${averageMood.emoji} ${averageMood.label}`,
+    bestDayLabel,
+    recordedDaysLabel: `${entries.length}/${monthDays.length}`,
+    summary: generateMonthSummary(entries, average, monthDays.length),
+    chartData: buildChartData(monthDays, entries, day => day.label)
+  };
+}
+
+function getYearMonths(state) {
+  const base = new Date(state.currentMonth);
+  const year = base.getFullYear();
+  const months = [];
+
+  for (let month = 0; month < 12; month++) {
+    const firstDay = new Date(year, month, 1);
+    const label = firstDay.toLocaleDateString('fr-FR', { month: 'short' });
+    const fullLabel = firstDay.toLocaleDateString('fr-FR', { month: 'long' });
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const entries = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const iso = formatDate(date);
+      const entry = state.moodEntries[iso];
+      if (entry) {
+        entries.push({
+          date: iso,
+          ...entry
+        });
+      }
+    }
+
+    let chartEntry = null;
+    if (entries.length > 0) {
+      const avg = entries.reduce((sum, item) => sum + item.mood, 0) / entries.length;
+      const rounded = Math.round(avg);
+      const moodMeta = moodLevels[rounded];
+      chartEntry = {
+        mood: Number(avg.toFixed(2)),
+        emoji: moodMeta.emoji,
+        label: moodMeta.label,
+        color: moodMeta.color
+      };
+    }
+
+    months.push({
+      label,
+      fullLabel,
+      entries,
+      entry: chartEntry
+    });
+  }
+
+  return months;
+}
+
+function generateYearSummary(entries, average, activeMonths) {
+  const averageRounded = Math.round(average);
+  const summaryIntro = `Cette année compte déjà ${entries.length} jour${entries.length > 1 ? 's' : ''} enregistrés sur ${activeMonths} mois actifs. `;
+
+  if (averageRounded >= 4) {
+    return (
+      summaryIntro +
+      `Année lumineuse avec une humeur ${moodLevels[averageRounded].label.toLowerCase()}. Continuez à capitaliser sur ces moments positifs. ✨`
+    );
+  }
+
+  if (averageRounded === 3) {
+    return (
+      summaryIntro +
+      `Année équilibrée pour l'instant. Vos humeurs restent stables malgré les variations saisonnières. 🌤️`
+    );
+  }
+
+  return (
+    summaryIntro +
+    `Année à améliorer avec une humeur ${moodLevels[averageRounded].label.toLowerCase()}. Planifiez des pauses et des moments ressourçants. 💙`
+  );
+}
+
+export function computeYearlyAnalytics(state) {
+  const months = getYearMonths(state);
+  const allEntries = months.flatMap(month => month.entries.map(entry => ({ ...entry, month }))).map(item => ({
+    date: item.date,
+    mood: item.mood,
+    note: item.note || ''
+  }));
+
+  const monthsWithData = months.filter(month => month.entries.length > 0).length;
+
+  if (allEntries.length === 0) {
+    return {
+      hasData: false,
+      averageLabel: '-',
+      bestDayLabel: '-',
+      recordedDaysLabel: `0/12`,
+      summary: 'Enregistrez vos humeurs pour analyser votre année.',
+      chartData: buildChartData(months, allEntries, month => month.label)
+    };
+  }
+
+  const average = allEntries.reduce((sum, entry) => sum + entry.mood, 0) / allEntries.length;
+  const averageMood = moodLevels[Math.round(average)];
+
+  const bestMonth = months.reduce(
+    (best, current) => {
+      if (!current.entry) {
+        return best;
+      }
+      if (!best.entry || current.entry.mood > best.entry.mood) {
+        return current;
+      }
+      return best;
+    },
+    { entry: null }
+  );
+
+  const bestDayLabel = bestMonth.entry
+    ? `${bestMonth.entry.emoji} ${bestMonth.fullLabel}`
+    : '-';
+
+  return {
+    hasData: true,
+    averageLabel: `${averageMood.emoji} ${averageMood.label}`,
+    bestDayLabel,
+    recordedDaysLabel: `${monthsWithData}/12`,
+    summary: generateYearSummary(allEntries, average, monthsWithData),
+    chartData: buildChartData(months, allEntries, month => month.label)
+  };
+}
+
+export function getAnalyticsViews(state) {
+  const weekDays = getWeekDays(state);
+  return {
+    week: computeAnalytics(state, weekDays),
+    month: computeMonthlyAnalytics(state),
+    year: computeYearlyAnalytics(state)
+  };
+}
+
 export function computeAnalytics(state, weekDays) {
   const entries = getWeekEntries(state);
 
@@ -171,7 +549,7 @@ export function computeAnalytics(state, weekDays) {
     bestDayLabel,
     recordedDaysLabel: `${entries.length}/7`,
     summary: generateWeekSummary(entries, average),
-    chartData: buildChartData(weekDays, entries)
+    chartData: buildChartData(weekDays, entries, day => day.shortName)
   };
 }
 
@@ -205,10 +583,12 @@ function generateWeekSummary(entries, average) {
   );
 }
 
-function buildChartData(weekDays, entries) {
-  const lineLabels = weekDays.map(day => day.shortName);
-  const lineData = weekDays.map(day => (day.entry ? day.entry.mood : null));
-  const lineColors = weekDays.map(day => (day.entry ? day.entry.color : '#cccccc'));
+function buildChartData(units, entries, labelSelector) {
+  const labels = units.map(unit =>
+    typeof labelSelector === 'function' ? labelSelector(unit) : unit[labelSelector] || ''
+  );
+  const lineData = units.map(unit => (unit.entry ? unit.entry.mood : null));
+  const lineColors = units.map(unit => (unit.entry ? unit.entry.color : '#cccccc'));
 
   const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   entries.forEach(entry => {
@@ -217,7 +597,7 @@ function buildChartData(weekDays, entries) {
 
   return {
     line: {
-      labels: lineLabels,
+      labels,
       data: lineData,
       colors: lineColors
     },
@@ -365,4 +745,226 @@ export function getEncouragementMessage(state) {
   }
 
   return null;
+}
+
+const weatherCodeInsights = [
+  {
+    codes: [0],
+    label: 'Grand soleil',
+    icon: '☀️',
+    modifier: 0.6,
+    tooltip: 'Un ciel dégagé favorise souvent une énergie positive et des activités en extérieur.'
+  },
+  {
+    codes: [1, 2],
+    label: 'Ciel partiellement nuageux',
+    icon: '⛅',
+    modifier: 0.3,
+    tooltip: 'Quelques nuages mais assez de lumière pour maintenir un bon niveau de motivation.'
+  },
+  {
+    codes: [3],
+    label: 'Ciel couvert',
+    icon: '☁️',
+    modifier: -0.1,
+    tooltip: 'Un ciel gris peut amener un léger ralentissement ou une baisse de moral.'
+  },
+  {
+    codes: [45, 48],
+    label: 'Brouillard',
+    icon: '🌫️',
+    modifier: -0.2,
+    tooltip: 'La visibilité réduite complique les déplacements et peut fatiguer.'
+  },
+  {
+    codes: [51, 53, 55, 56, 57],
+    label: 'Bruine ou pluie fine',
+    icon: '🌦️',
+    modifier: -0.3,
+    tooltip: 'L’humidité persistante influence souvent la motivation à sortir.'
+  },
+  {
+    codes: [61, 63, 65, 80, 81, 82],
+    label: 'Pluie modérée',
+    icon: '🌧️',
+    modifier: -0.4,
+    tooltip: 'Les journées pluvieuses demandent plus d’effort pour maintenir une bonne humeur.'
+  },
+  {
+    codes: [66, 67, 71, 73, 75, 77, 85, 86],
+    label: 'Neige ou pluie verglaçante',
+    icon: '❄️',
+    modifier: -0.15,
+    tooltip: 'Les routes glissantes ralentissent le rythme mais peuvent aussi apporter une ambiance cosy.'
+  },
+  {
+    codes: [95, 96, 99],
+    label: 'Orages',
+    icon: '⛈️',
+    modifier: -0.6,
+    tooltip: 'Les orages intenses peuvent créer du stress ou limiter les activités extérieures.'
+  }
+];
+
+function interpretWeatherCode(code) {
+  return (
+    weatherCodeInsights.find(group => group.codes.includes(code)) || {
+      label: 'Conditions variables',
+      icon: '🌤️',
+      modifier: 0,
+      tooltip: "Prévision météo incertaine, prudence recommandée."
+    }
+  );
+}
+
+function clampMood(value) {
+  return Math.max(1, Math.min(5, Number(value.toFixed(2))));
+}
+
+export async function fetchCityForecast(city) {
+  if (!city || !city.trim()) {
+    throw new Error('Saisissez une ville valide.');
+  }
+
+  const trimmed = city.trim();
+  const searchUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=1&language=fr&format=json`;
+  const searchResponse = await fetch(searchUrl);
+
+  if (!searchResponse.ok) {
+    throw new Error("Impossible de contacter le service météo (géocodage).");
+  }
+
+  const searchData = await searchResponse.json();
+  const found = searchData?.results?.[0];
+
+  if (!found) {
+    throw new Error('Ville introuvable. Vérifiez l’orthographe.');
+  }
+
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${found.latitude}&longitude=${found.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=${encodeURIComponent(found.timezone)}&forecast_days=7`;
+  const forecastResponse = await fetch(forecastUrl);
+
+  if (!forecastResponse.ok) {
+    throw new Error('La prévision météo est temporairement indisponible.');
+  }
+
+  const forecastData = await forecastResponse.json();
+  const daily = forecastData?.daily;
+
+  if (!daily || !daily.time) {
+    throw new Error('Aucune donnée météo exploitable.');
+  }
+
+  return {
+    cityLabel: `${found.name}, ${found.country_code}`,
+    timezone: forecastData.timezone,
+    days: daily.time.map((date, index) => ({
+      date,
+      weatherCode: daily.weathercode[index],
+      tempMax: daily.temperature_2m_max[index],
+      tempMin: daily.temperature_2m_min[index]
+    }))
+  };
+}
+
+function buildBaselineFromHistory(state) {
+  const entries = getAllMoodEntries(state);
+  if (!entries.length) {
+    return {
+      baseline: 3,
+      weekdayModifiers: {}
+    };
+  }
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+
+  const recentEntries = entries.filter(entry => {
+    const parsed = parseDateFromIso(entry.date);
+    return parsed && parsed >= thirtyDaysAgo;
+  });
+
+  const pool = recentEntries.length >= 5 ? recentEntries : entries;
+  const baseline = pool.reduce((sum, entry) => sum + entry.mood, 0) / pool.length;
+
+  const weekdayTotals = new Array(7).fill(0);
+  const weekdayCounts = new Array(7).fill(0);
+
+  pool.forEach(entry => {
+    if (entry.weekday != null) {
+      weekdayTotals[entry.weekday] += entry.mood;
+      weekdayCounts[entry.weekday] += 1;
+    }
+  });
+
+  const weekdayModifiers = {};
+  weekdayTotals.forEach((total, weekday) => {
+    if (weekdayCounts[weekday] > 0) {
+      const average = total / weekdayCounts[weekday];
+      weekdayModifiers[weekday] = Number((average - baseline).toFixed(2));
+    }
+  });
+
+  return {
+    baseline,
+    weekdayModifiers
+  };
+}
+
+export function computePredictionFromForecast(state, forecast) {
+  const { baseline, weekdayModifiers } = buildBaselineFromHistory(state);
+  const baselineMood = moodLevels[Math.round(clampMood(baseline))] || moodLevels[3];
+
+  const points = forecast.days.map(day => {
+    const weather = interpretWeatherCode(day.weatherCode);
+    const parsedDate = parseDateFromIso(day.date);
+    const weekday = parsedDate ? parsedDate.getDay() : null;
+    const weekdayAdjust = weekday != null && weekdayModifiers[weekday] ? weekdayModifiers[weekday] : 0;
+    const projected = clampMood(baseline + weather.modifier + weekdayAdjust);
+
+    return {
+      label: parsedDate
+        ? parsedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+        : day.date,
+      date: day.date,
+      mood: projected,
+      moodLevel: moodLevels[Math.round(projected)] || moodLevels[3],
+      weather,
+      temp: {
+        min: Math.round(day.tempMin),
+        max: Math.round(day.tempMax)
+      }
+    };
+  });
+
+  const dominantWeather = points.reduce(
+    (acc, point) => {
+      if (!acc[point.weather.label]) {
+        acc[point.weather.label] = { count: 0, info: point.weather };
+      }
+      acc[point.weather.label].count += 1;
+      return acc;
+    },
+    {}
+  );
+
+  const topWeather = Object.values(dominantWeather).sort((a, b) => b.count - a.count)[0];
+
+  const averageProjectedMood = points.reduce((sum, point) => sum + point.mood, 0) / points.length;
+  const averageMoodLevel = moodLevels[Math.round(clampMood(averageProjectedMood))] || moodLevels[3];
+
+  const reasons = [
+    `Votre humeur de référence est ${baselineMood.emoji} ${baselineMood.label.toLowerCase()}, calculée à partir des ${baselineMood ? 'derniers enregistrements' : 'données disponibles'}.`,
+    topWeather
+      ? `La tendance météo dominante sera ${topWeather.info.icon} ${topWeather.info.label.toLowerCase()}, ce qui influe de ${topWeather.info.modifier > 0 ? '+' : ''}${topWeather.info.modifier} sur votre humeur moyenne.`
+      : "Les conditions météo sont variées, l'impact sera modéré.",
+    `La projection globale prévoit ${averageMoodLevel.emoji} ${averageMoodLevel.label.toLowerCase()} pour la semaine à venir.`
+  ];
+
+  return {
+    baseline: baselineMood,
+    points,
+    reasons
+  };
 }
