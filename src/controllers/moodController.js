@@ -20,6 +20,7 @@ import {
   getWeekEntries,
   parseDateFromIso,
   getSystemTheme,
+  setAnalyticsPeriod
   loadStateFromCookie,
   saveStateToCookie,
   getAnalyticsViews,
@@ -352,6 +353,10 @@ export function createMoodController() {
     }
   }
 
+  function changeAnalyticsPeriod(period) {
+    setAnalyticsPeriod(state, period);
+  }
+
   return {
     state,
     moodLevels,
@@ -383,6 +388,7 @@ export function createMoodController() {
     focusDate,
     toggleTheme: toggleThemePreference,
     showToast,
+    changeAnalyticsPeriod
     setAnalyticsRange,
     setInsightsTab,
     setPredictionCity,
