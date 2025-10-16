@@ -24,7 +24,8 @@ import {
   saveStateToCookie,
   getAnalyticsViews,
   fetchCityForecast,
-  computePredictionFromForecast
+  computePredictionFromForecast,
+  setAnalyticsPeriod
 } from '../models/moodModel';
 
 const ANALYTICS_OPTIONS = [
@@ -352,6 +353,10 @@ export function createMoodController() {
     }
   }
 
+  function changeAnalyticsPeriod(period) {
+    setAnalyticsPeriod(state, period);
+  }
+
   return {
     state,
     moodLevels,
@@ -386,6 +391,7 @@ export function createMoodController() {
     setAnalyticsRange,
     setInsightsTab,
     setPredictionCity,
-    refreshPrediction
+    refreshPrediction,
+    changeAnalyticsPeriod
   };
 }
