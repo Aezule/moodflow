@@ -1,9 +1,9 @@
 export const moodLevels = {
-  1: { emoji: '😢', label: 'Très triste', color: '#ff4757', value: 1 },
-  2: { emoji: '😔', label: 'Triste', color: '#ff7675', value: 2 },
-  3: { emoji: '😐', label: 'Neutre', color: '#fdcb6e', value: 3 },
-  4: { emoji: '😊', label: 'Heureux', color: '#6c5ce7', value: 4 },
-  5: { emoji: '😄', label: 'Très heureux', color: '#00b894', value: 5 },
+  1: { emoji: '😢', label: 'Très triste', color: '#475569', value: 1 },
+  2: { emoji: '😔', label: 'Triste', color: '#b5896f', value: 2 },
+  3: { emoji: '😐', label: 'Neutre', color: '#f4d06f', value: 3 },
+  4: { emoji: '😊', label: 'Heureux', color: '#5ed4a2', value: 4 },
+  5: { emoji: '😄', label: 'Très heureux', color: '#5fa8f6', value: 5 },
 };
 
 export const quotes = {
@@ -1709,8 +1709,6 @@ class LinearRegression {
    * β = (X'X)⁻¹X'y
    */
   fit(X, y) {
-    const m = X.length;
-    const n = X[0].length;
     
     // Ajouter colonne de 1 pour l'intercept
     const X_with_intercept = X.map((row) => [1, ...row]);

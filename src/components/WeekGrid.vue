@@ -27,8 +27,14 @@ const getCardStyle = (day) => {
   if (!day.entry) {
     return null;
   }
+  const accent = day.entry.color;
+  const surfaceTint = `${accent}22`;
+  const borderTint = `${accent}33`;
   return {
-    background: `linear-gradient(135deg, var(--color-surface) 0%, ${day.entry.color}10 100%)`,
+    background: `linear-gradient(135deg, var(--color-surface) 0%, ${surfaceTint} 96%)`,
+    borderColor: borderTint,
+    '--day-card-shadow': `0 12px 22px -18px ${borderTint}`,
+    '--day-card-shadow-hover': `0 18px 32px -16px ${borderTint}`,
   };
 };
 </script>

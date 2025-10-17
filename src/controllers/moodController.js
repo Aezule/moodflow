@@ -25,10 +25,7 @@ import {
   saveStateToStorage,
   getAnalyticsViews,
   fetchCityForecast,
-  computePredictionFromForecast,
   setAnalyticsPeriod,
-  trainAndPredictWithML,
-  generateTrainingData,
   trainAllModelsAndPredict,
 } from '../models/moodModel';
 
@@ -104,18 +101,18 @@ export function createMoodController() {
 
   const moodBackgroundMap = {
     light: {
-      1: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88), rgba(59, 130, 246, 0.45))',
-      2: 'linear-gradient(135deg, rgba(55, 65, 81, 0.9), rgba(75, 85, 99, 0.78), rgba(148, 163, 184, 0.35))',
-      3: 'linear-gradient(135deg, rgba(254, 240, 138, 0.75), rgba(253, 224, 71, 0.55))',
-      4: 'linear-gradient(135deg, rgba(253, 224, 71, 0.7), rgba(250, 204, 21, 0.55), rgba(249, 115, 22, 0.35))',
-      5: 'linear-gradient(135deg, rgba(110, 231, 183, 0.85), rgba(52, 211, 153, 0.7), rgba(16, 185, 129, 0.45))',
+      1: 'linear-gradient(160deg, rgba(226, 232, 240, 0.88), rgba(148, 163, 184, 0.62), rgba(71, 85, 105, 0.72))',
+      2: 'linear-gradient(160deg, rgba(248, 236, 229, 0.86), rgba(214, 174, 146, 0.58), rgba(181, 137, 111, 0.68))',
+      3: 'linear-gradient(160deg, rgba(255, 248, 223, 0.86), rgba(244, 208, 111, 0.55), rgba(250, 224, 134, 0.66))',
+      4: 'linear-gradient(160deg, rgba(224, 255, 244, 0.86), rgba(153, 232, 195, 0.55), rgba(94, 212, 162, 0.66))',
+      5: 'linear-gradient(160deg, rgba(219, 234, 254, 0.9), rgba(125, 180, 248, 0.55), rgba(95, 168, 246, 0.66))',
     },
     dark: {
-      1: 'linear-gradient(135deg, rgba(10, 12, 24, 0.95), rgba(24, 31, 55, 0.88), rgba(56, 189, 248, 0.2))',
-      2: 'linear-gradient(135deg, rgba(22, 27, 45, 0.94), rgba(45, 55, 72, 0.82), rgba(148, 163, 184, 0.18))',
-      3: 'linear-gradient(135deg, rgba(63, 63, 70, 0.75), rgba(113, 113, 122, 0.28))',
-      4: 'linear-gradient(135deg, rgba(120, 53, 15, 0.35), rgba(234, 179, 8, 0.25))',
-      5: 'linear-gradient(135deg, rgba(15, 118, 110, 0.45), rgba(16, 185, 129, 0.25))',
+      1: 'linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.82), rgba(71, 85, 105, 0.4))',
+      2: 'linear-gradient(160deg, rgba(32, 24, 18, 0.94), rgba(67, 43, 30, 0.82), rgba(178, 124, 89, 0.26))',
+      3: 'linear-gradient(160deg, rgba(36, 26, 10, 0.94), rgba(88, 61, 18, 0.72), rgba(244, 208, 111, 0.26))',
+      4: 'linear-gradient(160deg, rgba(6, 31, 23, 0.96), rgba(17, 76, 61, 0.72), rgba(94, 212, 162, 0.26))',
+      5: 'linear-gradient(160deg, rgba(10, 31, 54, 0.96), rgba(29, 78, 216, 0.55), rgba(95, 168, 246, 0.32))',
     },
   };
 
