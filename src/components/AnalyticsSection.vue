@@ -25,11 +25,29 @@ const cityInput = ref('');
 const predictionLoading = ref(false);
 const predictionError = ref('');
 const showPrediction = ref(false);
+const selectedModelTab = ref('best'); // 'best', 'linear', 'knn', 'tree'
+const showDetails = ref(false); // Afficher détails techniques
 
 const prediction = computed(() => {
   return controller && controller.state && controller.state.prediction
     ? controller.state.prediction
     : {};
+});
+
+const currentModelData = computed(() => {
+  if (!prediction.value.allModels) return null;
+  
+  if (selectedModelTab.value === 'best') {
+    // Retourner le meilleur
+    const models = [
+      { key: 'linear', ...prediction.value.allModels.linear },
+      { key: 'knn', ...prediction.value.allModels.knn },
+      { key: 'tree', ...prediction.value.allModels.tree }
+    ];
+    return models.reduce((best, curr) => curr.r2 > best.r2 ? curr : best);
+  }
+  
+  return prediction.value.allModels[selectedModelTab.value];
 });
 
 let moodChart = null;
@@ -64,6 +82,7 @@ const loadPrediction = async () => {
 
   predictionLoading.value = true;
   predictionError.value = '';
+  selectedModelTab.value = 'best'; // Reset à meilleur
 
   try {
     if (controller.setPredictionCity) {
@@ -71,7 +90,7 @@ const loadPrediction = async () => {
     }
 
     if (controller.refreshPrediction) {
-      await controller.refreshPrediction();
+      await controller.refreshPrediction(); // Toujours ML maintenant
     }
 
     if (controller.state.prediction?.status === 'error') {
@@ -86,6 +105,14 @@ const loadPrediction = async () => {
   } finally {
     predictionLoading.value = false;
   }
+};
+
+const changeModel = (modelName) => {
+  selectedModelTab.value = modelName;
+  if (controller.selectPredictionModel) {
+    controller.selectPredictionModel(modelName);
+  }
+  renderPredictionChart();
 };
 
 const periodTitle = computed(() => {
@@ -438,7 +465,7 @@ onBeforeUnmount(() => {
           @keyup.enter="loadPrediction"
         />
         <button class="btn btn--primary" :disabled="predictionLoading" @click="loadPrediction">
-          {{ predictionLoading ? '⏳ Chargement...' : '🔮 Prédire mon humeur' }}
+          {{ predictionLoading ? '⏳ Entraînement des 3 modèles...' : '🤖 Lancer les prédictions ML' }}
         </button>
       </div>
 
@@ -450,20 +477,231 @@ onBeforeUnmount(() => {
         <div class="prediction-info__city">
           📍 Prévisions pour <strong>{{ prediction.cityLabel }}</strong>
         </div>
+        
+        <!-- Explication simple -->
+        <div class="prediction-explanation">
+          <p class="explanation-text">
+            🔮 <strong>Notre intelligence artificielle</strong> a analysé <strong>{{ prediction.modelMetrics?.trainingSize || 501 }} jours</strong> 
+            de données pour prédire votre humeur sur les 7 prochains jours, en tenant compte de 
+            <strong>la météo</strong> ☁️, <strong>vos habitudes</strong> 📅 et <strong>les saisons</strong> 🌸.
+          </p>
+          <div class="prediction-confidence">
+            <div class="confidence-bar">
+              <div class="confidence-fill" :style="{ width: `${(prediction.modelMetrics?.r2 || 0) * 100}%` }"></div>
+            </div>
+            <div class="confidence-label">
+              <strong>Fiabilité de la prédiction :</strong> 
+              <span class="confidence-value">{{ ((prediction.modelMetrics?.r2 || 0) * 100).toFixed(0) }}%</span>
+              <span class="confidence-desc">
+                {{ prediction.modelMetrics?.r2 > 0.8 ? '🌟 Excellente' : prediction.modelMetrics?.r2 > 0.6 ? '👍 Bonne' : '✅ Correcte' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
         <div v-if="prediction.baseline" class="prediction-info__baseline">
-          <span class="baseline-label">Votre humeur de référence :</span>
+          <span class="baseline-label">Votre humeur habituelle :</span>
           <span class="baseline-value"
             >{{ prediction.baseline.emoji }} {{ prediction.baseline.label }}</span
           >
         </div>
-        <div
-          v-if="prediction.reasons && prediction.reasons.length"
-          class="prediction-info__reasons"
-        >
-          <h4>💡 Analyse :</h4>
-          <ul>
-            <li v-for="(reason, index) in prediction.reasons" :key="index">{{ reason }}</li>
-          </ul>
+
+        <!-- Onglets de sélection de modèle -->
+        <div v-if="prediction.allModels" class="model-tabs">
+          <div class="model-tabs__header">
+            <button
+              class="model-tab"
+              :class="{ 'model-tab--active': selectedModelTab === 'best' }"
+              @click="changeModel('best')"
+            >
+              <span class="model-tab__icon">🏆</span>
+              <span class="model-tab__label">Meilleure prédiction</span>
+            </button>
+            <button
+              class="model-tab"
+              :class="{ 'model-tab--active': selectedModelTab === 'linear' }"
+              @click="changeModel('linear')"
+            >
+              <span class="model-tab__icon">📈</span>
+              <span class="model-tab__label">Analyse par tendances</span>
+            </button>
+            <button
+              class="model-tab"
+              :class="{ 'model-tab--active': selectedModelTab === 'knn' }"
+              @click="changeModel('knn')"
+            >
+              <span class="model-tab__icon">🎯</span>
+              <span class="model-tab__label">Jours similaires</span>
+            </button>
+            <button
+              class="model-tab"
+              :class="{ 'model-tab--active': selectedModelTab === 'tree' }"
+              @click="changeModel('tree')"
+            >
+              <span class="model-tab__icon">🌳</span>
+              <span class="model-tab__label">Scénarios</span>
+            </button>
+          </div>
+
+          <!-- Informations du modèle sélectionné (version simple) -->
+          <div v-if="currentModelData" class="model-details">
+            <div class="model-details__description">
+              <div v-if="selectedModelTab === 'best'" class="model-explainer">
+                <h5>🏆 Meilleure prédiction automatique</h5>
+                <p>L'IA a testé 3 méthodes différentes et a sélectionné celle qui est la plus précise pour vous : <strong>{{ currentModelData.name }}</strong></p>
+                <div class="accuracy-badge">
+                  <span class="badge-label">Précision :</span>
+                  <span class="badge-value">{{ (currentModelData.r2 * 100).toFixed(0) }}%</span>
+                </div>
+              </div>
+              
+              <div v-if="selectedModelTab === 'linear'" class="model-explainer">
+                <h5>📈 Analyse par tendances</h5>
+                <p>Cette méthode identifie les <strong>tendances générales</strong> : par exemple, si vous êtes généralement plus heureux le vendredi ou quand il fait beau.</p>
+                <p class="method-detail">💡 Comme tracer une ligne qui suit vos humeurs dans le temps</p>
+              </div>
+              
+              <div v-if="selectedModelTab === 'knn'" class="model-explainer">
+                <h5>🎯 Jours similaires</h5>
+                <p>Cette méthode cherche dans votre historique les <strong>5 jours les plus similaires</strong> (même jour de semaine, même météo...) et prédit que vous vous sentirez pareil.</p>
+                <p class="method-detail">💡 Comme se souvenir "la dernière fois qu'il pleuvait un lundi, je me sentais..."</p>
+              </div>
+              
+              <div v-if="selectedModelTab === 'tree'" class="model-explainer">
+                <h5>🌳 Scénarios</h5>
+                <p>Cette méthode crée des <strong>scénarios</strong> : "Si il fait beau ET c'est le weekend, alors vous serez heureux. Si il pleut ET c'est lundi, alors vous serez moins bien."</p>
+                <p class="method-detail">💡 Comme un arbre de décisions basé sur votre vécu</p>
+              </div>
+            </div>
+            
+            <div class="model-quick-stats">
+              <div class="quick-stat">
+                <span class="quick-stat__icon">📊</span>
+                <div class="quick-stat__content">
+                  <div class="quick-stat__label">Précision</div>
+                  <div class="quick-stat__value">{{ (currentModelData.r2 * 100).toFixed(0) }}%</div>
+                </div>
+              </div>
+              <div class="quick-stat">
+                <span class="quick-stat__icon">⚡</span>
+                <div class="quick-stat__content">
+                  <div class="quick-stat__label">Marge d'erreur</div>
+                  <div class="quick-stat__value">±{{ currentModelData.rmse.toFixed(1) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Bouton pour afficher détails techniques -->
+          <div class="details-toggle">
+            <button class="btn btn--outline btn--sm" @click="showDetails = !showDetails">
+              {{ showDetails ? '🔼 Masquer les détails techniques' : '🔽 Voir les détails techniques' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Détails techniques (masqués par défaut) -->
+        <div v-if="showDetails && prediction.allModels" class="ml-comparison">
+          <h4>🔬 Détails techniques pour les curieux :</h4>
+          
+          <div class="tech-intro">
+            <p>L'intelligence artificielle a testé <strong>3 algorithmes différents</strong> pour trouver le plus précis. 
+            Voici leurs performances :</p>
+          </div>
+          
+          <div class="comparison-cards">
+            <div 
+              class="comparison-card"
+              :class="{ 'comparison-card--best': prediction.allModels.linear.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+            >
+              <div class="comparison-card__header">
+                <span class="comparison-card__icon">📈</span>
+                <span class="comparison-card__name">Analyse par tendances</span>
+                <span v-if="prediction.allModels.linear.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+              </div>
+              <div class="comparison-card__score">
+                <div class="score-bar">
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.linear.r2 * 100}%` }"></div>
+                </div>
+                <div class="score-value">{{ (prediction.allModels.linear.r2 * 100).toFixed(1) }}% de précision</div>
+              </div>
+              <div class="comparison-card__details">
+                <span>Erreur : ±{{ prediction.allModels.linear.rmse.toFixed(2) }}</span>
+                <span class="tech-detail">(Régression Linéaire)</span>
+              </div>
+            </div>
+            
+            <div 
+              class="comparison-card"
+              :class="{ 'comparison-card--best': prediction.allModels.knn.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+            >
+              <div class="comparison-card__header">
+                <span class="comparison-card__icon">🎯</span>
+                <span class="comparison-card__name">Jours similaires</span>
+                <span v-if="prediction.allModels.knn.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+              </div>
+              <div class="comparison-card__score">
+                <div class="score-bar">
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.knn.r2 * 100}%` }"></div>
+                </div>
+                <div class="score-value">{{ (prediction.allModels.knn.r2 * 100).toFixed(1) }}% de précision</div>
+              </div>
+              <div class="comparison-card__details">
+                <span>Erreur : ±{{ prediction.allModels.knn.rmse.toFixed(2) }}</span>
+                <span class="tech-detail">(K-Nearest Neighbors)</span>
+              </div>
+            </div>
+            
+            <div 
+              class="comparison-card"
+              :class="{ 'comparison-card--best': prediction.allModels.tree.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+            >
+              <div class="comparison-card__header">
+                <span class="comparison-card__icon">🌳</span>
+                <span class="comparison-card__name">Scénarios</span>
+                <span v-if="prediction.allModels.tree.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+              </div>
+              <div class="comparison-card__score">
+                <div class="score-bar">
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.tree.r2 * 100}%` }"></div>
+                </div>
+                <div class="score-value">{{ (prediction.allModels.tree.r2 * 100).toFixed(1) }}% de précision</div>
+              </div>
+              <div class="comparison-card__details">
+                <span>Erreur : ±{{ prediction.allModels.tree.rmse.toFixed(2) }}</span>
+                <span class="tech-detail">(Decision Tree)</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="comparison-note">
+            💡 <strong>Plus le pourcentage est élevé, plus la prédiction est fiable.</strong> 
+            L'algorithme gagnant est utilisé automatiquement pour vos prédictions.
+          </div>
+        </div>
+        
+        <!-- Feature importances pour le modèle linéaire (détails techniques) -->
+        <div v-if="showDetails && selectedModelTab === 'linear' && prediction.allModels?.linear?.featureImportances" class="ml-metrics">
+          <h4>🎯 Coefficients de régression linéaire :</h4>
+          
+          <div class="feature-importance">
+            <div class="feature-bars">
+              <div
+                v-for="(feature, index) in prediction.allModels.linear.featureImportances"
+                :key="index"
+                class="feature-bar"
+              >
+                <div class="feature-name">{{ index + 1 }}. {{ feature.name }}</div>
+                <div class="feature-visual">
+                  <div
+                    class="feature-fill"
+                    :style="{ width: `${(feature.impact / prediction.allModels.linear.featureImportances[0].impact) * 100}%` }"
+                  ></div>
+                  <span class="feature-coef">{{ feature.value > 0 ? '+' : '' }}{{ feature.value.toFixed(3) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

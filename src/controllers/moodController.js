@@ -27,6 +27,9 @@ import {
   fetchCityForecast,
   computePredictionFromForecast,
   setAnalyticsPeriod,
+  trainAndPredictWithML,
+  generateTrainingData,
+  trainAllModelsAndPredict,
 } from '../models/moodModel';
 
 const ANALYTICS_OPTIONS = [
@@ -416,15 +419,23 @@ export function createMoodController() {
 
     try {
       const forecast = await fetchCityForecast(city);
-      const insights = computePredictionFromForecast(state, forecast);
+      
+      // Entraîner les 3 modèles ML et sélectionner le meilleur
+      const insights = trainAllModelsAndPredict(state, forecast);
 
       state.prediction.status = 'success';
       state.prediction.cityLabel = forecast.cityLabel;
       state.prediction.chart = insights.points;
       state.prediction.reasons = insights.reasons;
       state.prediction.baseline = insights.baseline;
+      state.prediction.modelMetrics = insights.modelMetrics;
+      state.prediction.allModels = insights.allModels;
+      state.prediction.selectedModel = 'best';
       state.prediction.lastUpdated = new Date().toISOString();
       persistState();
+      
+      // Toast avec résultats
+      showToast(`🏆 ${insights.modelMetrics.bestModelName} gagne avec R² = ${(insights.modelMetrics.r2 * 100).toFixed(1)}%`);
     } catch (error) {
       console.error(error);
       state.prediction.status = 'error';
@@ -432,7 +443,29 @@ export function createMoodController() {
       state.prediction.chart = null;
       state.prediction.reasons = [];
       state.prediction.baseline = null;
+      state.prediction.modelMetrics = null;
+      state.prediction.allModels = null;
       state.prediction.lastUpdated = null;
+    }
+  }
+  
+  function selectPredictionModel(modelName) {
+    if (state.prediction.allModels && ['best', 'linear', 'knn', 'tree'].includes(modelName)) {
+      state.prediction.selectedModel = modelName;
+      
+      // Mettre à jour les points affichés selon le modèle sélectionné
+      if (modelName === 'best') {
+        // Trouver le meilleur modèle
+        const models = [
+          { key: 'linear', data: state.prediction.allModels.linear },
+          { key: 'knn', data: state.prediction.allModels.knn },
+          { key: 'tree', data: state.prediction.allModels.tree }
+        ];
+        const best = models.reduce((best, curr) => curr.data.r2 > best.data.r2 ? curr : best);
+        state.prediction.chart = best.data.predictions;
+      } else {
+        state.prediction.chart = state.prediction.allModels[modelName].predictions;
+      }
     }
   }
 
@@ -470,6 +503,7 @@ export function createMoodController() {
     showToast,
     setPredictionCity,
     refreshPrediction,
+    selectPredictionModel,
     changeAnalyticsPeriod,
   };
 }

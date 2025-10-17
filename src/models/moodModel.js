@@ -217,50 +217,92 @@ export function createInitialState(initialTheme = 'light', useSystemTheme = fals
 }
 
 export function loadSampleData(state) {
-  const sampleEntries = [
-    // Semaine actuelle
-    { date: '2025-10-14', mood: 4, note: 'Belle journée au travail' },
-    { date: '2025-10-15', mood: 3, note: 'Journée normale' },
-    { date: '2025-10-16', mood: 5, note: 'Excellent projet terminé !' },
-
-    // Autres jours du mois d'octobre
-    { date: '2025-10-01', mood: 4, note: 'Bon début de mois' },
-    { date: '2025-10-03', mood: 5, note: 'Super journée' },
-    { date: '2025-10-05', mood: 3, note: 'Journée tranquille' },
-    { date: '2025-10-08', mood: 4, note: 'Bonne ambiance' },
-    { date: '2025-10-10', mood: 2, note: 'Jour difficile' },
-    { date: '2025-10-12', mood: 4, note: 'Journée productive' },
-
-    // Mois précédents pour tester la vue année
-    { date: '2025-09-15', mood: 4, note: 'Septembre agréable' },
-    { date: '2025-09-20', mood: 5, note: 'Excellent mois' },
-    { date: '2025-09-25', mood: 4, note: 'Bonne période' },
-
-    { date: '2025-08-10', mood: 5, note: 'Super vacances' },
-    { date: '2025-08-15', mood: 5, note: 'Août génial' },
-    { date: '2025-08-20', mood: 4, note: 'Bel été' },
-
-    { date: '2025-07-05', mood: 4, note: 'Juillet sympa' },
-    { date: '2025-07-18', mood: 3, note: 'Mois moyen' },
-
-    { date: '2025-06-12', mood: 3, note: 'Juin correct' },
-    { date: '2025-06-20', mood: 4, note: 'Bonne fin de mois' },
-
-    { date: '2025-05-08', mood: 2, note: 'Mai difficile' },
-    { date: '2025-05-15', mood: 3, note: 'Ça va mieux' },
-
-    { date: '2025-04-10', mood: 4, note: 'Avril agréable' },
-    { date: '2025-04-22', mood: 5, note: 'Super printemps' },
-
-    { date: '2025-03-05', mood: 3, note: 'Mars tranquille' },
-    { date: '2025-03-18', mood: 4, note: 'Bonne période' },
-
-    { date: '2025-02-14', mood: 5, note: 'Belle journée' },
-    { date: '2025-02-20', mood: 4, note: 'Février sympa' },
-
-    { date: '2025-01-10', mood: 4, note: 'Bonne année' },
-    { date: '2025-01-25', mood: 3, note: 'Janvier correct' },
+  const today = new Date();
+  const sampleEntries = [];
+  
+  // Paramètres de personnalité réaliste
+  const baseHappiness = 3.5;
+  const weekdayPattern = [0, -0.3, -0.2, 0.1, 0.2, 0.4, 0.3]; // Dim-Sam
+  const seasonalPattern = [-0.2, -0.1, 0.1, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0, -0.1, -0.2]; // Jan-Déc
+  
+  const notes = [
+    'Belle journée',
+    'Journée productive',
+    'Un peu fatigué',
+    'Excellente ambiance',
+    'Réunion intéressante',
+    'Projet avancé',
+    'Journée tranquille',
+    'Moment difficile',
+    'Super moment avec amis',
+    'Travail intense',
+    'Repos bien mérité',
+    'Découverte enrichissante',
+    'Moment de réflexion',
+    'Énergie au top',
+    'Besoin de pause',
+    'Journée équilibrée',
+    'Challenge relevé',
+    'Moment créatif',
+    'Soirée agréable',
+    'Matinée motivante',
   ];
+  
+  // Générer 500 jours avant aujourd'hui
+  for (let i = 500; i >= 1; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    
+    const weekday = date.getDay();
+    const month = date.getMonth();
+    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+    
+    // Simuler météo réaliste
+    let weatherCode;
+    const randomFactor = Math.random();
+    
+    if (month >= 5 && month <= 8) {
+      // Été : plus de soleil
+      weatherCode = randomFactor > 0.3 ? 0 : randomFactor > 0.1 ? 1 : 3;
+    } else if (month >= 11 || month <= 2) {
+      // Hiver : plus de pluie/neige
+      weatherCode = randomFactor > 0.5 ? 61 : randomFactor > 0.2 ? 3 : 71;
+    } else {
+      // Printemps/Automne
+      weatherCode = randomFactor > 0.6 ? 1 : randomFactor > 0.3 ? 3 : 61;
+    }
+    
+    const weather = interpretWeatherCode(weatherCode);
+    const tempMax = 15 + seasonalPattern[month] * 10 + (Math.random() - 0.5) * 5;
+    
+    // Calculer une humeur réaliste INCLUANT la météo
+    let mood = baseHappiness;
+    mood += weekdayPattern[weekday]; // Jour semaine
+    mood += seasonalPattern[month]; // Saison
+    mood += weather.modifier * 1.5; // MÉTÉO (amplifié)
+    mood += (Math.random() - 0.5) * 0.6; // Variation aléatoire
+    mood += Math.sin(dayOfYear / 30) * 0.25; // Cycles mensuels
+    
+    // Influence température
+    const tempDiff = Math.abs(tempMax - 20);
+    mood -= (tempDiff / 15) * 0.8;
+    
+    // Clamp entre 1 et 5 (garder décimales)
+    mood = Math.max(1, Math.min(5, mood));
+    mood = Number(mood.toFixed(2));
+    
+    // Sélectionner une note aléatoire (80% du temps seulement)
+    const hasNote = Math.random() > 0.2;
+    const note = hasNote ? notes[Math.floor(Math.random() * notes.length)] : '';
+    
+    sampleEntries.push({
+      date: formatDate(date),
+      mood: mood,
+      note: note,
+    });
+  }
+  
+  console.log(`📊 Génération de ${sampleEntries.length} jours d'humeurs pré-remplies`);
 
   sampleEntries.forEach((entry) => {
     state.moodEntries[entry.date] = {
@@ -312,7 +354,7 @@ export function getWeekDays(state) {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const iso = formatDate(date);
     const entry = state.moodEntries[iso];
-    const moodData = entry ? moodLevels[entry.mood] : null;
+    const moodData = entry ? moodLevels[Math.round(entry.mood)] : null;
 
     days.push({
       iso,
@@ -372,7 +414,7 @@ export function getMonthDays(state) {
     const date = new Date(year, month, day);
     const iso = formatDate(date);
     const entry = state.moodEntries[iso];
-    const moodData = entry ? moodLevels[entry.mood] : null;
+    const moodData = entry ? moodLevels[Math.round(entry.mood)] : null;
 
     days.push({
       iso,
@@ -490,7 +532,7 @@ export function computeMonthlyAnalytics(state) {
   const averageMood = moodLevels[Math.round(average)];
   const bestEntry = entries.reduce((best, current) => (current.mood > best.mood ? current : best));
   const bestDate = parseDateFromIso(bestEntry.date);
-  const bestDayLabel = `${moodLevels[bestEntry.mood].emoji} ${bestDate.toLocaleDateString('fr-FR', {
+  const bestDayLabel = `${moodLevels[Math.round(bestEntry.mood)].emoji} ${bestDate.toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -678,7 +720,7 @@ function computeWeekAnalytics(state, weekDays) {
 
   const bestEntry = entries.reduce((best, current) => (current.mood > best.mood ? current : best));
   const bestDate = parseDateFromIso(bestEntry.date);
-  const bestDayLabel = `${moodLevels[bestEntry.mood].emoji} ${bestDate.toLocaleDateString('fr-FR', {
+  const bestDayLabel = `${moodLevels[Math.round(bestEntry.mood)].emoji} ${bestDate.toLocaleDateString('fr-FR', {
     weekday: 'long',
   })}`;
 
@@ -716,7 +758,7 @@ function computeMonthAnalytics(state) {
   const bestEntry = entries.reduce((best, current) => (current.mood > best.mood ? current : best));
   const bestDate = parseDateFromIso(bestEntry.date);
   const bestDayLabel = `${
-    moodLevels[bestEntry.mood].emoji
+    moodLevels[Math.round(bestEntry.mood)].emoji
   } ${bestDate.getDate()} ${bestDate.toLocaleDateString('fr-FR', {
     month: 'long',
   })}`;
@@ -773,7 +815,8 @@ function generateWeekSummary(entries, average) {
   const moodCounts = {};
 
   entries.forEach((entry) => {
-    moodCounts[entry.mood] = (moodCounts[entry.mood] || 0) + 1;
+    const roundedMood = Math.round(entry.mood);
+    moodCounts[roundedMood] = (moodCounts[roundedMood] || 0) + 1;
   });
 
   const summaryIntro = `Cette semaine, vous avez enregistré ${
@@ -815,7 +858,10 @@ function buildChartData(units, entries, labelSelector) {
 
   const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   entries.forEach((entry) => {
-    moodCounts[entry.mood] += 1;
+    const roundedMood = Math.round(entry.mood);
+    if (roundedMood >= 1 && roundedMood <= 5) {
+      moodCounts[roundedMood] += 1;
+    }
   });
 
   return {
@@ -849,7 +895,7 @@ function buildMonthChartData(state, entries) {
 
     if (entry) {
       lineData.push(entry.mood);
-      lineColors.push(moodLevels[entry.mood].color);
+      lineColors.push(moodLevels[Math.round(entry.mood)].color);
     } else {
       lineData.push(null);
       lineColors.push('#cccccc');
@@ -858,7 +904,8 @@ function buildMonthChartData(state, entries) {
 
   const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   entries.forEach((entry) => {
-    moodCounts[entry.mood] += 1;
+    const roundedMood = Math.round(entry.mood);
+    moodCounts[roundedMood] = (moodCounts[roundedMood] || 0) + 1;
   });
 
   return {
@@ -1304,4 +1351,845 @@ export function setAnalyticsPeriod(state, period) {
     state.analyticsPeriod = period;
     state.analyticsView = period;
   }
+}
+
+// ============================================================================
+// 🤖 MACHINE LEARNING - RÉGRESSION LINÉAIRE POUR PRÉDICTION D'HUMEUR
+// ============================================================================
+
+/**
+ * Génère des données d'entraînement réalistes pour le ML
+ * Simule 500 jours d'humeurs avec patterns réalistes
+ */
+export function generateTrainingData() {
+  const trainingData = [];
+  const today = new Date();
+  
+  // Paramètres de personnalité simulée
+  const baseHappiness = 3.5; // Humeur de base
+  const weekdayPattern = [0, -0.3, -0.2, 0.1, 0.2, 0.4, 0.3]; // Dim-Sam (weekend meilleur)
+  const seasonalPattern = [
+    -0.2, -0.1, 0.1, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0, -0.1, -0.2
+  ]; // Jan-Déc (été meilleur, hiver plus difficile)
+  
+  // Générer 500 jours de données (~16 mois)
+  for (let i = 500; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    
+    const weekday = date.getDay();
+    const month = date.getMonth();
+    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+    
+    // Simuler code météo réaliste basé sur la saison
+    let weatherCode;
+    const randomFactor = Math.random();
+    
+    if (month >= 5 && month <= 8) {
+      // Été : 70% soleil, 20% nuageux, 10% couvert
+      weatherCode = randomFactor > 0.3 ? 0 : randomFactor > 0.1 ? 1 : 3;
+    } else if (month >= 11 || month <= 2) {
+      // Hiver : 50% pluie, 30% couvert, 20% neige
+      weatherCode = randomFactor > 0.5 ? 61 : randomFactor > 0.2 ? 3 : 71;
+    } else {
+      // Printemps/Automne : 40% nuageux, 30% couvert, 30% pluie
+      weatherCode = randomFactor > 0.6 ? 1 : randomFactor > 0.3 ? 3 : 61;
+    }
+    
+    const weather = interpretWeatherCode(weatherCode);
+    const tempMax = 15 + seasonalPattern[month] * 10 + (Math.random() - 0.5) * 5;
+    const tempMin = tempMax - 5 - Math.random() * 3;
+    
+    // Calculer l'humeur réelle avec formule complexe
+    let mood = baseHappiness;
+    mood += weekdayPattern[weekday]; // -0.3 à +0.4
+    mood += seasonalPattern[month]; // -0.2 à +0.5
+    mood += weather.modifier * 1.5; // Impact météo amplifié
+    mood += (Math.random() - 0.5) * 0.6; // Bruit aléatoire ±0.3
+    mood += Math.sin(dayOfYear / 30) * 0.25; // Cycles mensuels
+    
+    // Influence de la température (optimum autour de 20°C)
+    const tempOptimum = 20;
+    const tempDiff = Math.abs(tempMax - tempOptimum);
+    mood -= (tempDiff / 15) * 0.8; // Impact température amplifié
+    
+    // Clamp entre 1 et 5
+    mood = Math.max(1, Math.min(5, mood));
+    
+    trainingData.push({
+      date: formatDate(date),
+      mood: Number(mood.toFixed(2)),
+      weekday,
+      month,
+      dayOfYear,
+      weatherCode,
+      weatherModifier: weather.modifier,
+      tempMax: Number(tempMax.toFixed(1)),
+      tempMin: Number(tempMin.toFixed(1)),
+      seasonFactor: Number(Math.sin((dayOfYear / 365) * 2 * Math.PI).toFixed(2)),
+    });
+  }
+  
+  return trainingData;
+}
+
+/**
+ * K-Nearest Neighbors pour régression
+ * Prédit basé sur les K exemples les plus similaires
+ */
+class KNNRegressor {
+  constructor(k = 5) {
+    this.k = k;
+    this.X_train = null;
+    this.y_train = null;
+    this.r2Score = null;
+    this.meanSquaredError = null;
+  }
+  
+  fit(X, y) {
+    this.X_train = X;
+    this.y_train = y;
+    
+    // Calculer métriques sur le training set (avec leave-one-out)
+    const predictions = X.map((_, i) => {
+      const X_temp = X.filter((_, idx) => idx !== i);
+      const y_temp = y.filter((_, idx) => idx !== i);
+      return this._predictOne(X[i], X_temp, y_temp);
+    });
+    
+    this._calculateMetrics(y, predictions);
+    return this;
+  }
+  
+  predict(X) {
+    if (!this.X_train) {
+      throw new Error("Modèle non entraîné. Appelez fit() d'abord.");
+    }
+    
+    return X.map(x => this._predictOne(x, this.X_train, this.y_train));
+  }
+  
+  _predictOne(x, X_train, y_train) {
+    // Calculer distances euclidiennes
+    const distances = X_train.map((x_train, i) => ({
+      distance: this._euclideanDistance(x, x_train),
+      value: y_train[i]
+    }));
+    
+    // Trier et prendre les K plus proches
+    distances.sort((a, b) => a.distance - b.distance);
+    const nearest = distances.slice(0, this.k);
+    
+    // Moyenne pondérée (poids = 1/distance)
+    let weightedSum = 0;
+    let totalWeight = 0;
+    
+    nearest.forEach(n => {
+      const weight = n.distance === 0 ? 1000 : 1 / (n.distance + 1e-5);
+      weightedSum += n.value * weight;
+      totalWeight += weight;
+    });
+    
+    return weightedSum / totalWeight;
+  }
+  
+  _euclideanDistance(a, b) {
+    return Math.sqrt(
+      a.reduce((sum, val, i) => sum + Math.pow(val - b[i], 2), 0)
+    );
+  }
+  
+  _calculateMetrics(y_true, y_pred) {
+    const n = y_true.length;
+    const mean_y = y_true.reduce((a, b) => a + b, 0) / n;
+    
+    const mse = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0) / n;
+    
+    const ss_tot = y_true.reduce((sum, y) => {
+      return sum + Math.pow(y - mean_y, 2);
+    }, 0);
+    
+    const ss_res = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0);
+    
+    this.meanSquaredError = mse;
+    this.r2Score = 1 - ss_res / ss_tot;
+  }
+}
+
+/**
+ * Decision Tree pour régression
+ * Arbre de décision binaire
+ */
+class DecisionTreeRegressor {
+  constructor(maxDepth = 5, minSamplesSplit = 10) {
+    this.maxDepth = maxDepth;
+    this.minSamplesSplit = minSamplesSplit;
+    this.tree = null;
+    this.r2Score = null;
+    this.meanSquaredError = null;
+  }
+  
+  fit(X, y) {
+    this.tree = this._buildTree(X, y, 0);
+    
+    // Calculer métriques
+    const predictions = this.predict(X);
+    this._calculateMetrics(y, predictions);
+    
+    return this;
+  }
+  
+  predict(X) {
+    if (!this.tree) {
+      throw new Error("Modèle non entraîné. Appelez fit() d'abord.");
+    }
+    
+    return X.map(x => this._predictOne(x, this.tree));
+  }
+  
+  _buildTree(X, y, depth) {
+    const n = X.length;
+    
+    // Conditions d'arrêt
+    if (depth >= this.maxDepth || n < this.minSamplesSplit) {
+      return {
+        type: 'leaf',
+        value: y.reduce((a, b) => a + b, 0) / n
+      };
+    }
+    
+    // Trouver le meilleur split
+    const bestSplit = this._findBestSplit(X, y);
+    
+    if (!bestSplit || bestSplit.gain < 0.01) {
+      return {
+        type: 'leaf',
+        value: y.reduce((a, b) => a + b, 0) / n
+      };
+    }
+    
+    // Séparer les données
+    const leftIndices = [];
+    const rightIndices = [];
+    
+    X.forEach((x, i) => {
+      if (x[bestSplit.featureIndex] <= bestSplit.threshold) {
+        leftIndices.push(i);
+      } else {
+        rightIndices.push(i);
+      }
+    });
+    
+    return {
+      type: 'node',
+      featureIndex: bestSplit.featureIndex,
+      threshold: bestSplit.threshold,
+      left: this._buildTree(
+        leftIndices.map(i => X[i]),
+        leftIndices.map(i => y[i]),
+        depth + 1
+      ),
+      right: this._buildTree(
+        rightIndices.map(i => X[i]),
+        rightIndices.map(i => y[i]),
+        depth + 1
+      )
+    };
+  }
+  
+  _findBestSplit(X, y) {
+    const numFeatures = X[0].length;
+    let bestGain = -Infinity;
+    let bestSplit = null;
+    
+    const variance = this._variance(y);
+    
+    // Essayer chaque feature
+    for (let featureIdx = 0; featureIdx < numFeatures; featureIdx++) {
+      const values = X.map(x => x[featureIdx]);
+      const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+      
+      // Essayer chaque threshold
+      for (let i = 0; i < uniqueValues.length - 1; i++) {
+        const threshold = (uniqueValues[i] + uniqueValues[i + 1]) / 2;
+        
+        const leftIndices = [];
+        const rightIndices = [];
+        
+        X.forEach((x, idx) => {
+          if (x[featureIdx] <= threshold) {
+            leftIndices.push(idx);
+          } else {
+            rightIndices.push(idx);
+          }
+        });
+        
+        if (leftIndices.length === 0 || rightIndices.length === 0) continue;
+        
+        const leftY = leftIndices.map(i => y[i]);
+        const rightY = rightIndices.map(i => y[i]);
+        
+        // Calculer gain (réduction de variance)
+        const leftVar = this._variance(leftY);
+        const rightVar = this._variance(rightY);
+        const weightedVar = 
+          (leftY.length / y.length) * leftVar +
+          (rightY.length / y.length) * rightVar;
+        
+        const gain = variance - weightedVar;
+        
+        if (gain > bestGain) {
+          bestGain = gain;
+          bestSplit = { featureIndex: featureIdx, threshold, gain };
+        }
+      }
+    }
+    
+    return bestSplit;
+  }
+  
+  _predictOne(x, node) {
+    if (node.type === 'leaf') {
+      return node.value;
+    }
+    
+    if (x[node.featureIndex] <= node.threshold) {
+      return this._predictOne(x, node.left);
+    } else {
+      return this._predictOne(x, node.right);
+    }
+  }
+  
+  _variance(values) {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    return values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+  }
+  
+  _calculateMetrics(y_true, y_pred) {
+    const n = y_true.length;
+    const mean_y = y_true.reduce((a, b) => a + b, 0) / n;
+    
+    const mse = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0) / n;
+    
+    const ss_tot = y_true.reduce((sum, y) => {
+      return sum + Math.pow(y - mean_y, 2);
+    }, 0);
+    
+    const ss_res = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0);
+    
+    this.meanSquaredError = mse;
+    this.r2Score = 1 - ss_res / ss_tot;
+  }
+}
+
+/**
+ * Classe de régression linéaire multivariée
+ * Implémentation from scratch (pas de lib externe)
+ * Formule: y = β₀ + β₁x₁ + β₂x₂ + ... + βₙxₙ
+ */
+class LinearRegression {
+  constructor() {
+    this.coefficients = null;
+    this.intercept = null;
+    this.r2Score = null;
+    this.meanSquaredError = null;
+  }
+  
+  /**
+   * Entraîne le modèle avec la méthode des moindres carrés ordinaires
+   * β = (X'X)⁻¹X'y
+   */
+  fit(X, y) {
+    const m = X.length;
+    const n = X[0].length;
+    
+    // Ajouter colonne de 1 pour l'intercept
+    const X_with_intercept = X.map((row) => [1, ...row]);
+    
+    // Calcul matriciel: β = (X'X)⁻¹X'y
+    const XT = this._transpose(X_with_intercept);
+    const XTX = this._matmul(XT, X_with_intercept);
+    const XTX_inv = this._inverse(XTX);
+    const XTy = this._matvecmul(XT, y);
+    const beta = this._matvecmul(XTX_inv, XTy);
+    
+    this.intercept = beta[0];
+    this.coefficients = beta.slice(1);
+    
+    // Calculer métriques de performance
+    const predictions = this.predict(X);
+    this._calculateMetrics(y, predictions);
+    
+    return this;
+  }
+  
+  /**
+   * Prédit les valeurs pour de nouvelles données
+   */
+  predict(X) {
+    if (!this.coefficients) {
+      throw new Error("Modèle non entraîné. Appelez fit() d'abord.");
+    }
+    
+    return X.map((row) => {
+      let prediction = this.intercept;
+      for (let i = 0; i < row.length; i++) {
+        prediction += this.coefficients[i] * row[i];
+      }
+      return prediction;
+    });
+  }
+  
+  /**
+   * Calcule R² et MSE pour évaluer la performance
+   */
+  _calculateMetrics(y_true, y_pred) {
+    const n = y_true.length;
+    const mean_y = y_true.reduce((a, b) => a + b, 0) / n;
+    
+    // MSE = moyenne des erreurs au carré
+    const mse = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0) / n;
+    
+    // R² = 1 - (SS_res / SS_tot)
+    const ss_tot = y_true.reduce((sum, y) => {
+      return sum + Math.pow(y - mean_y, 2);
+    }, 0);
+    
+    const ss_res = y_true.reduce((sum, y, i) => {
+      return sum + Math.pow(y - y_pred[i], 2);
+    }, 0);
+    
+    const r2 = 1 - ss_res / ss_tot;
+    
+    this.meanSquaredError = mse;
+    this.r2Score = r2;
+  }
+  
+  // ===== Utilitaires d'algèbre linéaire =====
+  
+  _transpose(matrix) {
+    return matrix[0].map((_, i) => matrix.map((row) => row[i]));
+  }
+  
+  _matmul(A, B) {
+    const result = [];
+    for (let i = 0; i < A.length; i++) {
+      result[i] = [];
+      for (let j = 0; j < B[0].length; j++) {
+        result[i][j] = 0;
+        for (let k = 0; k < A[0].length; k++) {
+          result[i][j] += A[i][k] * B[k][j];
+        }
+      }
+    }
+    return result;
+  }
+  
+  _matvecmul(matrix, vector) {
+    return matrix.map((row) => row.reduce((sum, val, i) => sum + val * vector[i], 0));
+  }
+  
+  _inverse(matrix) {
+    const n = matrix.length;
+    const identity = Array(n)
+      .fill(0)
+      .map((_, i) => Array(n).fill(0).map((_, j) => (i === j ? 1 : 0)));
+    
+    const augmented = matrix.map((row, i) => [...row, ...identity[i]]);
+    
+    // Élimination de Gauss-Jordan pour inverser la matrice
+    for (let i = 0; i < n; i++) {
+      // Pivot partiel
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+      [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+      
+      const pivot = augmented[i][i];
+      if (Math.abs(pivot) < 1e-10) continue;
+      
+      // Normaliser la ligne du pivot
+      for (let j = 0; j < 2 * n; j++) {
+        augmented[i][j] /= pivot;
+      }
+      
+      // Éliminer la colonne
+      for (let k = 0; k < n; k++) {
+        if (k !== i) {
+          const factor = augmented[k][i];
+          for (let j = 0; j < 2 * n; j++) {
+            augmented[k][j] -= factor * augmented[i][j];
+          }
+        }
+      }
+    }
+    
+    return augmented.map((row) => row.slice(n));
+  }
+}
+
+/**
+ * Entraîne les 3 modèles et sélectionne le meilleur
+ * @param {Object} state - État de l'application
+ * @param {Object} forecast - Prévisions météo de l'API
+ * @returns {Object} Résultats des 3 modèles + meilleur
+ */
+export function trainAllModelsAndPredict(state, forecast) {
+  console.log('🤖 === ENTRAÎNEMENT DES 3 MODÈLES ML ===');
+  
+  // 1. GÉNÉRER LES DONNÉES D'ENTRAÎNEMENT
+  // On utilise TOUJOURS les données simulées car elles incluent la météo
+  // Les vraies données utilisateur n'ont pas l'historique météo
+  console.log('🎲 Génération de 501 jours de données simulées avec météo');
+  const trainingData = generateTrainingData();
+  
+  console.log(`✅ ${trainingData.length} exemples d'entraînement générés`);
+  
+  // 2. PRÉPARER LES FEATURES (X) ET LABELS (y)
+  const X = trainingData.map((d) => [
+    d.weekday / 6,
+    d.month / 11,
+    d.weatherModifier,
+    d.seasonFactor,
+    (d.tempMax - 10) / 20,
+    d.dayOfYear / 365,
+  ]);
+  
+  const y = trainingData.map((d) => d.mood);
+  
+  // 3. ENTRAÎNER LES 3 MODÈLES
+  console.log('\n📚 ENTRAÎNEMENT DES MODÈLES...');
+  
+  const startTime = performance.now();
+  
+  // Modèle 1: Régression Linéaire
+  console.log('1️⃣ Régression Linéaire...');
+  const linearModel = new LinearRegression();
+  linearModel.fit(X, y);
+  console.log(`   ✅ R²=${(linearModel.r2Score * 100).toFixed(1)}% MSE=${linearModel.meanSquaredError.toFixed(3)}`);
+  
+  // Modèle 2: KNN
+  console.log('2️⃣ K-Nearest Neighbors (k=5)...');
+  const knnModel = new KNNRegressor(5);
+  knnModel.fit(X, y);
+  console.log(`   ✅ R²=${(knnModel.r2Score * 100).toFixed(1)}% MSE=${knnModel.meanSquaredError.toFixed(3)}`);
+  
+  // Modèle 3: Decision Tree
+  console.log('3️⃣ Decision Tree (depth=5)...');
+  const treeModel = new DecisionTreeRegressor(5, 10);
+  treeModel.fit(X, y);
+  console.log(`   ✅ R²=${(treeModel.r2Score * 100).toFixed(1)}% MSE=${treeModel.meanSquaredError.toFixed(3)}`);
+  
+  const trainingTime = performance.now() - startTime;
+  console.log(`\n⏱️ Temps total: ${trainingTime.toFixed(0)}ms`);
+  
+  // 4. PRÉDIRE AVEC LES 3 MODÈLES
+  const todayDate = new Date();
+  
+  const prepareFeaturesForDay = (day, i) => {
+    const date = new Date(todayDate);
+    date.setDate(todayDate.getDate() + i);
+    
+    const weekday = date.getDay();
+    const month = date.getMonth();
+    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+    const seasonFactor = Math.sin((dayOfYear / 365) * 2 * Math.PI);
+    const weather = interpretWeatherCode(day.weatherCode);
+    
+    return {
+      features: [
+        weekday / 6,
+        month / 11,
+        weather.modifier,
+        seasonFactor,
+        (day.tempMax - 10) / 20,
+        dayOfYear / 365,
+      ],
+      date: parseDateFromIso(day.date),
+      weather,
+      temp: { min: Math.round(day.tempMin), max: Math.round(day.tempMax) }
+    };
+  };
+  
+  const linearPredictions = [];
+  const knnPredictions = [];
+  const treePredictions = [];
+  
+  forecast.days.forEach((day, i) => {
+    const { features, date, weather, temp } = prepareFeaturesForDay(day, i);
+    
+    const linearMood = clampMood(linearModel.predict([features])[0]);
+    const knnMood = clampMood(knnModel.predict([features])[0]);
+    const treeMood = clampMood(treeModel.predict([features])[0]);
+    
+    const label = date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+    
+    linearPredictions.push({
+      label, date: day.date, mood: linearMood,
+      moodLevel: moodLevels[Math.round(linearMood)] || moodLevels[3],
+      weather, temp
+    });
+    
+    knnPredictions.push({
+      label, date: day.date, mood: knnMood,
+      moodLevel: moodLevels[Math.round(knnMood)] || moodLevels[3],
+      weather, temp
+    });
+    
+    treePredictions.push({
+      label, date: day.date, mood: treeMood,
+      moodLevel: moodLevels[Math.round(treeMood)] || moodLevels[3],
+      weather, temp
+    });
+  });
+  
+  // 5. DÉTERMINER LE MEILLEUR MODÈLE
+  const models = [
+    { name: 'Régression Linéaire', r2: linearModel.r2Score, mse: linearModel.meanSquaredError, predictions: linearPredictions, model: linearModel },
+    { name: 'K-Nearest Neighbors', r2: knnModel.r2Score, mse: knnModel.meanSquaredError, predictions: knnPredictions, model: knnModel },
+    { name: 'Decision Tree', r2: treeModel.r2Score, mse: treeModel.meanSquaredError, predictions: treePredictions, model: treeModel }
+  ];
+  
+  const bestModel = models.reduce((best, current) => 
+    current.r2 > best.r2 ? current : best
+  );
+  
+  console.log(`\n🏆 MEILLEUR MODÈLE: ${bestModel.name} (R²=${(bestModel.r2 * 100).toFixed(1)}%)`);
+  
+  // 6. PRÉPARER LES RÉSULTATS
+  const featureNames = [
+    'Jour de la semaine',
+    'Mois/Saison',
+    'Conditions météo',
+    'Cycle saisonnier',
+    'Température',
+    'Tendance temporelle',
+  ];
+  
+  // Feature importances (seulement pour linear)
+  const importances = linearModel.coefficients
+    .map((coef, i) => ({
+      name: featureNames[i],
+      impact: Math.abs(coef),
+      value: coef,
+    }))
+    .sort((a, b) => b.impact - a.impact);
+  
+  const avgPrediction = bestModel.predictions.reduce((sum, p) => sum + p.mood, 0) / 7;
+  const avgMoodLevel = moodLevels[Math.round(avgPrediction)] || moodLevels[3];
+  
+  const reasons = [
+    `🏆 Meilleur modèle: ${bestModel.name} avec R² = ${(bestModel.r2 * 100).toFixed(1)}% sur ${trainingData.length} jours`,
+    `📊 Comparaison: Linear=${(models[0].r2 * 100).toFixed(1)}%, KNN=${(models[1].r2 * 100).toFixed(1)}%, Tree=${(models[2].r2 * 100).toFixed(1)}%`,
+    `🎯 Prédiction moyenne: ${avgMoodLevel.emoji} ${avgMoodLevel.label} (${avgPrediction.toFixed(2)}/5)`,
+  ];
+  
+  return {
+    points: bestModel.predictions,
+    reasons,
+    baseline: moodLevels[Math.round(trainingData[trainingData.length - 1].mood)] || moodLevels[3],
+    modelMetrics: {
+      r2: bestModel.r2,
+      mse: bestModel.mse,
+      rmse: Math.sqrt(bestModel.mse),
+      trainingSize: trainingData.length,
+      trainingTime: trainingTime,
+      bestModelName: bestModel.name,
+    },
+    allModels: {
+      linear: {
+        name: 'Régression Linéaire',
+        predictions: linearPredictions,
+        r2: linearModel.r2Score,
+        mse: linearModel.meanSquaredError,
+        rmse: Math.sqrt(linearModel.meanSquaredError),
+        coefficients: linearModel.coefficients,
+        intercept: linearModel.intercept,
+        featureImportances: importances,
+      },
+      knn: {
+        name: 'K-Nearest Neighbors (k=5)',
+        predictions: knnPredictions,
+        r2: knnModel.r2Score,
+        mse: knnModel.meanSquaredError,
+        rmse: Math.sqrt(knnModel.meanSquaredError),
+        k: knnModel.k,
+      },
+      tree: {
+        name: 'Decision Tree (depth=5)',
+        predictions: treePredictions,
+        r2: treeModel.r2Score,
+        mse: treeModel.meanSquaredError,
+        rmse: Math.sqrt(treeModel.meanSquaredError),
+        maxDepth: treeModel.maxDepth,
+      },
+    },
+  };
+}
+
+/**
+ * Entraîne un modèle ML et génère des prédictions (LEGACY - garde pour compatibilité)
+ * @param {Object} state - État de l'application
+ * @param {Object} forecast - Prévisions météo de l'API
+ * @returns {Object} Prédictions avec métriques ML
+ */
+export function trainAndPredictWithML(state, forecast) {
+  console.log('🤖 === DÉMARRAGE ENTRAÎNEMENT ML ===');
+  
+  // 1. GÉNÉRER LES DONNÉES D'ENTRAÎNEMENT
+  let trainingData;
+  if (Object.keys(state.moodEntries).length > 30) {
+    console.log('📊 Utilisation des vraies données utilisateur');
+    trainingData = getAllMoodEntries(state).map((entry) => {
+      const date = parseDateFromIso(entry.date);
+      const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+      return {
+        ...entry,
+        weekday: date.getDay(),
+        month: date.getMonth(),
+        dayOfYear,
+        weatherModifier: 0,
+        tempMax: 20,
+        tempMin: 15,
+        seasonFactor: Math.sin((dayOfYear / 365) * 2 * Math.PI),
+      };
+    });
+  } else {
+    console.log('🎲 Génération de données simulées');
+    trainingData = generateTrainingData();
+  }
+  
+  console.log(`✅ ${trainingData.length} exemples générés`);
+  console.log('📋 Exemple de données:', trainingData[0]);
+  
+  // 2. PRÉPARER LES FEATURES (X) ET LABELS (y)
+  const X = trainingData.map((d) => [
+    d.weekday / 6, // Feature 1: Jour semaine (normalisé 0-1)
+    d.month / 11, // Feature 2: Mois (normalisé 0-1)
+    d.weatherModifier, // Feature 3: Impact météo (-0.6 à +0.6)
+    d.seasonFactor, // Feature 4: Saison (-1 à +1)
+    (d.tempMax - 10) / 20, // Feature 5: Température (normalisé)
+    d.dayOfYear / 365, // Feature 6: Jour de l'année (0-1)
+  ]);
+  
+  const y = trainingData.map((d) => d.mood);
+  
+  console.log('🔢 Features shape:', `${X.length} x ${X[0].length}`);
+  console.log('🎯 Target shape:', y.length);
+  
+  // 3. ENTRAÎNER LE MODÈLE
+  console.log('⚙️ Entraînement du modèle...');
+  const model = new LinearRegression();
+  model.fit(X, y);
+  
+  console.log('✅ MODÈLE ENTRAÎNÉ !');
+  console.log(`📈 R² Score: ${(model.r2Score * 100).toFixed(2)}%`);
+  console.log(`📉 MSE: ${model.meanSquaredError.toFixed(4)}`);
+  console.log('🎯 Intercept:', model.intercept.toFixed(3));
+  console.log('🎯 Coefficients:', model.coefficients.map((c) => c.toFixed(3)));
+  
+  // 4. FAIRE DES PRÉDICTIONS POUR LES 7 PROCHAINS JOURS
+  const todayDate = new Date();
+  const predictions = forecast.days.map((day, i) => {
+    const date = new Date(todayDate);
+    date.setDate(todayDate.getDate() + i);
+    
+    const weekday = date.getDay();
+    const month = date.getMonth();
+    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+    const seasonFactor = Math.sin((dayOfYear / 365) * 2 * Math.PI);
+    
+    const weather = interpretWeatherCode(day.weatherCode);
+    
+    // Créer le vecteur de features pour ce jour
+    const features = [
+      weekday / 6,
+      month / 11,
+      weather.modifier,
+      seasonFactor,
+      (day.tempMax - 10) / 20,
+      dayOfYear / 365,
+    ];
+    
+    // PRÉDIRE avec le modèle entraîné
+    const [predictedMood] = model.predict([features]);
+    const clampedMood = clampMood(predictedMood);
+    
+    const parsedDate = parseDateFromIso(day.date);
+    
+    return {
+      label: parsedDate.toLocaleDateString('fr-FR', {
+        weekday: 'short',
+        day: 'numeric',
+      }),
+      date: day.date,
+      mood: clampedMood,
+      moodLevel: moodLevels[Math.round(clampedMood)] || moodLevels[3],
+      weather,
+      temp: {
+        min: Math.round(day.tempMin),
+        max: Math.round(day.tempMax),
+      },
+    };
+  });
+  
+  // 5. ANALYSER L'IMPORTANCE DES FEATURES
+  const featureNames = [
+    'Jour de la semaine',
+    'Mois/Saison',
+    'Conditions météo',
+    'Cycle saisonnier',
+    'Température',
+    'Tendance temporelle',
+  ];
+  
+  const importances = model.coefficients
+    .map((coef, i) => ({
+      name: featureNames[i],
+      impact: Math.abs(coef),
+      value: coef,
+    }))
+    .sort((a, b) => b.impact - a.impact);
+  
+  const avgPrediction = predictions.reduce((sum, p) => sum + p.mood, 0) / predictions.length;
+  const avgMoodLevel = moodLevels[Math.round(avgPrediction)] || moodLevels[3];
+  
+  // 6. GÉNÉRER LES EXPLICATIONS
+  const reasons = [
+    `🤖 Modèle ML entraîné sur ${trainingData.length} jours avec R² = ${(model.r2Score * 100).toFixed(1)}% (précision: ${model.r2Score > 0.7 ? 'excellente' : model.r2Score > 0.5 ? 'bonne' : 'correcte'})`,
+    `🎯 Top 3 facteurs: ${importances[0].name} (${importances[0].value > 0 ? '+' : ''}${importances[0].value.toFixed(2)}), ${importances[1].name} (${importances[1].value > 0 ? '+' : ''}${importances[1].value.toFixed(2)}), ${importances[2].name} (${importances[2].value > 0 ? '+' : ''}${importances[2].value.toFixed(2)})`,
+    `📊 Prédiction moyenne: ${avgMoodLevel.emoji} ${avgMoodLevel.label} (${avgPrediction.toFixed(2)}/5) - Erreur moyenne: ±${Math.sqrt(model.meanSquaredError).toFixed(2)}`,
+  ];
+  
+  console.log('🎉 Prédictions générées:', predictions);
+  
+  return {
+    points: predictions,
+    reasons,
+    baseline:
+      moodLevels[Math.round(trainingData[trainingData.length - 1].mood)] || moodLevels[3],
+    modelMetrics: {
+      r2: model.r2Score,
+      mse: model.meanSquaredError,
+      rmse: Math.sqrt(model.meanSquaredError),
+      coefficients: model.coefficients,
+      intercept: model.intercept,
+      featureImportances: importances,
+      trainingSize: trainingData.length,
+    },
+  };
 }
