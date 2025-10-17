@@ -17,7 +17,6 @@ export const quotes = {
     "Respire, on n'est pas sur une story Instagram parfaite",
     'Ton drama du jour sera la punchline de demain',
     'Ta charge mentale mérite un spa, pas un marathon: pose les to-do, respire',
-    "Tu n'es pas un bug dans le système, surtout pas quand tu te bats pour toi et ton crew",
   ],
   neutral: [
     'Chaque jour est une nouvelle page à écrire',
@@ -27,9 +26,6 @@ export const quotes = {
     "Reste présent dans l'instant",
     "Aujourd'hui, vibe tranquille, mais on met quand même un gif de chat",
     "Hydrate-toi, étire-toi, et fais semblant d'être dans un vlog esthétique",
-    "Même si c'est lundi, ton aura mérite un filtre paillette",
-    'Team charge mentale: on met le cerveau sur mode avion cinq minutes, promis',
-    "Ton identité est validée par toi, pas par le menu déroulant de quelqu'un d'autre",
   ],
   happy: [
     'Ton sourire illumine le monde',
@@ -40,8 +36,6 @@ export const quotes = {
     "Continue de briller, on dirait l'intro d'une comédie romantique Netflix",
     'Ton mood du jour mérite un montage TikTok avec transitions dramatiques',
     'On dirait que tu viens de recevoir un message de ton crush: ambiance fireworks',
-    'Tu vibres comme une parade Pride: couleurs full power, amour illimité',
-    'Furry, bi, trans, peu importe: ta joyeuse meute est fière de toi, et moi aussi',
   ],
 };
 
