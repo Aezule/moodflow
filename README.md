@@ -18,7 +18,7 @@ chaque push sur master fais une mise en prod automatique
 
 
 ### Modèle de données simplifié 
-![Modèle de données](image-1.png)
+![Modèle de données](public/Modele_données.png)
 Les données sont stockées dans le navigateur dans le localstorage avec un format Clé/Valeur.
 Aucune base distante utilisée
 
