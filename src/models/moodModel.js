@@ -44,8 +44,6 @@ export const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Sam
 export const shortDayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const STORAGE_KEY = 'moodflow_state_v1';
-const LEGACY_COOKIE_NAME = 'moodflow_state_v1';
-
 function isBrowser() {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
 }
@@ -60,64 +58,6 @@ function getLocalStorage() {
     console.error('Local storage is not accessible', error);
     return null;
   }
-}
-
-function fromBase64(encoded) {
-  if (typeof window === 'undefined' || typeof window.atob !== 'function') {
-    return null;
-  }
-  try {
-    const binary = window.atob(encoded);
-    if (typeof TextDecoder !== 'undefined') {
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return new TextDecoder().decode(bytes);
-    }
-    return decodeURIComponent(escape(binary));
-  } catch (error) {
-    console.error('Failed to decode base64 payload', error);
-    return null;
-  }
-}
-
-function decodeLegacyCookie(raw) {
-  if (!isBrowser() || !raw) {
-    return null;
-  }
-  try {
-    const decoded = fromBase64(decodeURIComponent(raw));
-    return decoded ? JSON.parse(decoded) : null;
-  } catch (error) {
-    console.error('Failed to decode legacy cookie payload', error);
-    return null;
-  }
-}
-
-function readLegacyCookie() {
-  if (!isBrowser()) {
-    return null;
-  }
-
-  const cookie = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${LEGACY_COOKIE_NAME}=`));
-
-  if (!cookie) {
-    return null;
-  }
-
-  const raw = cookie.split('=')[1];
-  return decodeLegacyCookie(raw);
-}
-
-function clearLegacyCookie() {
-  if (!isBrowser()) {
-    return;
-  }
-
-  document.cookie = `${LEGACY_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 function buildPersistedPayload(state) {
@@ -147,19 +87,6 @@ export function loadStateFromStorage() {
     }
   }
 
-  const legacy = readLegacyCookie();
-  if (legacy) {
-    if (storage) {
-      try {
-        storage.setItem(STORAGE_KEY, JSON.stringify(legacy));
-      } catch (error) {
-        console.error('Failed to migrate legacy cookie to local storage', error);
-      }
-    }
-    clearLegacyCookie();
-    return legacy;
-  }
-
   return null;
 }
 
@@ -176,8 +103,6 @@ export function saveStateToStorage(state) {
   } catch (error) {
     console.error('Failed to persist state to local storage', error);
   }
-
-  clearLegacyCookie();
 }
 
 export function getSystemTheme() {
