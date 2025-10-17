@@ -2,8 +2,8 @@
 const props = defineProps({
   quote: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 });
 </script>
 

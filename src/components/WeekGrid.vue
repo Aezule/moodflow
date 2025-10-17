@@ -1,5 +1,5 @@
 <script setup>
-import { inject } from "vue";
+import { inject } from 'vue';
 
 const props = defineProps({
   days: {
@@ -8,17 +8,15 @@ const props = defineProps({
   },
 });
 
-const controller = inject("controller");
+const controller = inject('controller');
 
 if (!controller) {
-  throw new Error("Controller injection missing in WeekGrid");
+  throw new Error('Controller injection missing in WeekGrid');
 }
 
 const openDay = (day) => {
   if (day.isFuture) {
-    controller.showToast?.(
-      "Impossible d'ajouter une humeur pour une journée future"
-    );
+    controller.showToast?.("Impossible d'ajouter une humeur pour une journée future");
     return;
   }
 
@@ -58,9 +56,7 @@ const getCardStyle = (day) => {
           <div class="day-card__day">{{ day.dayName }}</div>
           <div class="day-card__date">{{ day.displayDate }}</div>
         </div>
-        <span
-          v-if="day.isToday"
-          style="color: var(--color-primary); font-weight: bold"
+        <span v-if="day.isToday" style="color: var(--color-primary); font-weight: bold"
           >Aujourd'hui</span
         >
       </div>

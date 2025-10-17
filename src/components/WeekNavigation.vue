@@ -4,8 +4,8 @@ import { inject } from 'vue';
 const props = defineProps({
   title: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 });
 
 const controller = inject('controller');

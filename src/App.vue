@@ -19,14 +19,10 @@ const weekDays = controller.weekDays;
 const quote = controller.quote;
 const analytics = controller.analytics;
 const analyticsTitle = controller.analyticsTitle;
-const analyticsRange = controller.analyticsRange;
-const analyticsOptions = controller.analyticsOptions;
 const weekSummary = controller.weekSummary;
 const summaryTitle = controller.summaryTitle;
 const calendarMatrix = controller.calendarMatrix;
 const monthTitle = controller.monthTitle;
-const activeInsightsTab = controller.activeInsightsTab;
-const prediction = controller.prediction;
 </script>
 
 <template>
@@ -37,14 +33,7 @@ const prediction = controller.prediction;
     <main class="main">
       <div class="container">
         <WeekGrid :days="weekDays" />
-        <AnalyticsSection
-          :analytics="analytics"
-          :title="analyticsTitle"
-          :range="analyticsRange"
-          :options="analyticsOptions"
-          :active-tab="activeInsightsTab"
-          :prediction="prediction"
-        />
+        <AnalyticsSection :analytics="analytics" :title="analyticsTitle" />
         <WeekSummary :title="summaryTitle" :summary="weekSummary" />
       </div>
     </main>

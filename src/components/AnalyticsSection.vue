@@ -5,8 +5,8 @@ import Chart from 'chart.js/auto';
 const props = defineProps({
   analytics: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
 });
 
 const controller = inject('controller', null);
@@ -27,7 +27,9 @@ const predictionError = ref('');
 const showPrediction = ref(false);
 
 const prediction = computed(() => {
-  return controller && controller.state && controller.state.prediction ? controller.state.prediction : {};
+  return controller && controller.state && controller.state.prediction
+    ? controller.state.prediction
+    : {};
 });
 
 let moodChart = null;
@@ -38,16 +40,20 @@ const changePeriod = (period) => {
   if (period === 'prediction') {
     showPrediction.value = true;
     // Pré-remplir la ville si elle existe
-    if (controller.state.prediction?.city) {
+    if (controller?.state?.prediction?.city) {
       cityInput.value = controller.state.prediction.city;
     }
+    destroyCharts();
+    renderPredictionChart();
     return;
   }
-  
+
   showPrediction.value = false;
-  if (controller && controller.changeAnalyticsPeriod) {
+  destroyCharts();
+  if (controller?.changeAnalyticsPeriod) {
     controller.changeAnalyticsPeriod(period);
   }
+  renderCharts(props.analytics || {});
 };
 
 const loadPrediction = async () => {
@@ -63,7 +69,7 @@ const loadPrediction = async () => {
     if (controller.setPredictionCity) {
       controller.setPredictionCity(cityInput.value);
     }
-    
+
     if (controller.refreshPrediction) {
       await controller.refreshPrediction();
     }
@@ -84,12 +90,12 @@ const loadPrediction = async () => {
 
 const periodTitle = computed(() => {
   if (showPrediction.value) {
-    return '🔮 Prédiction d\'humeur (7 jours)';
+    return "🔮 Prédiction d'humeur (7 jours)";
   }
   const titles = {
     week: 'Analytics de la semaine',
     month: 'Analytics du mois',
-    year: 'Analytics de l\'année'
+    year: "Analytics de l'année",
   };
   return titles[selectedPeriod.value] || 'Analytics de la semaine';
 });
@@ -113,7 +119,7 @@ const renderPredictionChart = () => {
   destroyCharts();
 
   const predData = prediction.value.chart || [];
-  
+
   if (predData.length === 0) {
     return;
   }
@@ -121,21 +127,23 @@ const renderPredictionChart = () => {
   moodChart = new Chart(moodCanvas.value.getContext('2d'), {
     type: 'line',
     data: {
-      labels: predData.map(p => p.label),
-      datasets: [{
-        label: "Prédiction d'humeur",
-        data: predData.map(p => p.mood),
-        borderColor: '#6c5ce7',
-        backgroundColor: 'rgba(108, 92, 231, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 8,
-        pointHoverRadius: 10,
-        pointBackgroundColor: predData.map(p => p.moodLevel.color),
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2
-      }]
+      labels: predData.map((p) => p.label),
+      datasets: [
+        {
+          label: "Prédiction d'humeur",
+          data: predData.map((p) => p.mood),
+          borderColor: '#6c5ce7',
+          backgroundColor: 'rgba(108, 92, 231, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 8,
+          pointHoverRadius: 10,
+          pointBackgroundColor: predData.map((p) => p.moodLevel.color),
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -144,22 +152,22 @@ const renderPredictionChart = () => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: context => {
+            title: (context) => {
               const index = context[0]?.dataIndex;
               const point = predData[index];
               return `${point.label} - ${point.weather.icon} ${point.weather.label}`;
             },
-            label: context => {
+            label: (context) => {
               const index = context.dataIndex;
               const point = predData[index];
               return [
                 `${point.moodLevel.emoji} ${point.moodLevel.label}`,
                 `Température: ${point.temp.min}°C - ${point.temp.max}°C`,
-                point.weather.tooltip
+                point.weather.tooltip,
               ];
-            }
-          }
-        }
+            },
+          },
+        },
       },
       scales: {
         y: {
@@ -168,18 +176,18 @@ const renderPredictionChart = () => {
           max: 5.5,
           ticks: {
             stepSize: 1,
-            callback: value => {
+            callback: (value) => {
               const mood = moodLevels?.[Math.round(value)];
               return mood ? mood.emoji : '';
-            }
+            },
           },
-          grid: { color: 'rgba(0,0,0,0.05)' }
+          grid: { color: 'rgba(0,0,0,0.05)' },
         },
         x: {
-          grid: { display: false }
-        }
-      }
-    }
+          grid: { display: false },
+        },
+      },
+    },
   });
 
   // Graphique en barres : Impact météo
@@ -188,19 +196,21 @@ const renderPredictionChart = () => {
     { label: '⛅ Nuageux', value: 0.3, color: 'rgba(135, 206, 250, 0.5)' },
     { label: '☁️ Couvert', value: -0.1, color: 'rgba(169, 169, 169, 0.5)' },
     { label: '🌧️ Pluie', value: -0.4, color: 'rgba(65, 105, 225, 0.5)' },
-    { label: '⛈️ Orages', value: -0.6, color: 'rgba(75, 0, 130, 0.5)' }
+    { label: '⛈️ Orages', value: -0.6, color: 'rgba(75, 0, 130, 0.5)' },
   ];
 
   barChart = new Chart(barCanvas.value.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: weatherImpacts.map(w => w.label),
-      datasets: [{
-        label: 'Impact sur l\'humeur',
-        data: weatherImpacts.map(w => w.value),
-        backgroundColor: weatherImpacts.map(w => w.color),
-        borderRadius: 8
-      }]
+      labels: weatherImpacts.map((w) => w.label),
+      datasets: [
+        {
+          label: "Impact sur l'humeur",
+          data: weatherImpacts.map((w) => w.value),
+          backgroundColor: weatherImpacts.map((w) => w.color),
+          borderRadius: 8,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -209,27 +219,27 @@ const renderPredictionChart = () => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: context => {
+            label: (context) => {
               const value = context.parsed.y;
               return `Impact: ${value > 0 ? '+' : ''}${value}`;
-            }
-          }
-        }
+            },
+          },
+        },
       },
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(0,0,0,0.05)' }
+          grid: { color: 'rgba(0,0,0,0.05)' },
         },
         x: {
-          grid: { display: false }
-        }
-      }
-    }
+          grid: { display: false },
+        },
+      },
+    },
   });
 };
 
-const renderCharts = analytics => {
+const renderCharts = (analytics) => {
   if (!moodCanvas.value || !barCanvas.value) {
     return;
   }
@@ -265,9 +275,9 @@ const renderCharts = analytics => {
           pointHoverRadius: 8,
           pointBackgroundColor: data.line.colors,
           pointBorderColor: '#ffffff',
-          pointBorderWidth: 2
-        }
-      ]
+          pointBorderWidth: 2,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -276,16 +286,16 @@ const renderCharts = analytics => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: context => {
+            label: (context) => {
               const value = context.parsed.y;
               const mood = value ? moodLevels?.[value] : null;
               if (mood) {
                 return `${mood.emoji} ${mood.label}`;
               }
               return value ? value.toString() : "Pas d'humeur";
-            }
-          }
-        }
+            },
+          },
+        },
       },
       scales: {
         y: {
@@ -294,18 +304,18 @@ const renderCharts = analytics => {
           max: 5.5,
           ticks: {
             stepSize: 1,
-            callback: value => {
+            callback: (value) => {
               const mood = moodLevels?.[value];
               return mood ? mood.emoji : '';
-            }
+            },
           },
-          grid: { color: 'rgba(0,0,0,0.05)' }
+          grid: { color: 'rgba(0,0,0,0.05)' },
         },
         x: {
-          grid: { display: false }
-        }
-      }
-    }
+          grid: { display: false },
+        },
+      },
+    },
   });
 
   barChart = new Chart(barCanvas.value.getContext('2d'), {
@@ -320,9 +330,9 @@ const renderCharts = analytics => {
           borderColor: data.bar.borderColors,
           borderWidth: 2,
           borderRadius: 8,
-          borderSkipped: false
-        }
-      ]
+          borderSkipped: false,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -331,7 +341,7 @@ const renderCharts = analytics => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: context => {
+            title: (context) => {
               const index = context[0]?.dataIndex;
               if (index == null) {
                 return '';
@@ -340,24 +350,24 @@ const renderCharts = analytics => {
               const mood = moodLevels?.[moodValue];
               return mood ? mood.label : '';
             },
-            label: context => {
+            label: (context) => {
               const count = context.parsed.y;
               return `${count} jour${count > 1 ? 's' : ''}`;
-            }
-          }
-        }
+            },
+          },
+        },
       },
       scales: {
         y: {
           beginAtZero: true,
           ticks: { stepSize: 1 },
-          grid: { color: 'rgba(0,0,0,0.05)' }
+          grid: { color: 'rgba(0,0,0,0.05)' },
         },
         x: {
-          grid: { display: false }
-        }
-      }
-    }
+          grid: { display: false },
+        },
+      },
+    },
   });
 };
 
@@ -365,7 +375,7 @@ onMounted(() => {
   renderCharts(props.analytics || {});
   stopWatch = watch(
     () => props.analytics,
-    analytics => {
+    (analytics) => {
       renderCharts(analytics || {});
     },
     { deep: true }
@@ -386,29 +396,29 @@ onBeforeUnmount(() => {
     <div class="analytics__header">
       <h3 class="analytics__title">{{ periodTitle }}</h3>
       <div class="period-switch">
-        <button 
-          class="period-switch__btn" 
+        <button
+          class="period-switch__btn"
           :class="{ 'period-switch__btn--active': selectedPeriod === 'week' && !showPrediction }"
           @click="changePeriod('week')"
         >
           Semaine
         </button>
-        <button 
-          class="period-switch__btn" 
+        <button
+          class="period-switch__btn"
           :class="{ 'period-switch__btn--active': selectedPeriod === 'month' && !showPrediction }"
           @click="changePeriod('month')"
         >
           Mois
         </button>
-        <button 
-          class="period-switch__btn" 
+        <button
+          class="period-switch__btn"
           :class="{ 'period-switch__btn--active': selectedPeriod === 'year' && !showPrediction }"
           @click="changePeriod('year')"
         >
           Année
         </button>
-        <button 
-          class="period-switch__btn period-switch__btn--prediction" 
+        <button
+          class="period-switch__btn period-switch__btn--prediction"
           :class="{ 'period-switch__btn--active': showPrediction }"
           @click="changePeriod('prediction')"
         >
@@ -420,37 +430,36 @@ onBeforeUnmount(() => {
     <!-- Section saisie ville pour prédiction -->
     <div v-if="showPrediction" class="prediction-input">
       <div class="prediction-input__field">
-        <input 
+        <input
           v-model="cityInput"
-          type="text" 
+          type="text"
           placeholder="Entrez votre ville (ex: Paris, Lyon, Marseille...)"
           class="city-input"
           @keyup.enter="loadPrediction"
         />
-        <button 
-          @click="loadPrediction" 
-          class="btn btn--primary"
-          :disabled="predictionLoading"
-        >
+        <button class="btn btn--primary" :disabled="predictionLoading" @click="loadPrediction">
           {{ predictionLoading ? '⏳ Chargement...' : '🔮 Prédire mon humeur' }}
         </button>
       </div>
-      
+
       <!-- Message d'erreur -->
-      <div v-if="predictionError" class="prediction-error">
-        ❌ {{ predictionError }}
-      </div>
+      <div v-if="predictionError" class="prediction-error">❌ {{ predictionError }}</div>
 
       <!-- Informations sur la prédiction -->
       <div v-if="prediction.status === 'success' && prediction.cityLabel" class="prediction-info">
         <div class="prediction-info__city">
           📍 Prévisions pour <strong>{{ prediction.cityLabel }}</strong>
         </div>
-        <div class="prediction-info__baseline" v-if="prediction.baseline">
+        <div v-if="prediction.baseline" class="prediction-info__baseline">
           <span class="baseline-label">Votre humeur de référence :</span>
-          <span class="baseline-value">{{ prediction.baseline.emoji }} {{ prediction.baseline.label }}</span>
+          <span class="baseline-value"
+            >{{ prediction.baseline.emoji }} {{ prediction.baseline.label }}</span
+          >
         </div>
-        <div class="prediction-info__reasons" v-if="prediction.reasons && prediction.reasons.length">
+        <div
+          v-if="prediction.reasons && prediction.reasons.length"
+          class="prediction-info__reasons"
+        >
           <h4>💡 Analyse :</h4>
           <ul>
             <li v-for="(reason, index) in prediction.reasons" :key="index">{{ reason }}</li>

@@ -2,12 +2,12 @@
 const props = defineProps({
   summary: {
     type: String,
-    default: ''
+    default: '',
   },
   title: {
     type: String,
-    default: 'Résumé'
-  }
+    default: 'Résumé',
+  },
 });
 </script>
 

@@ -30,9 +30,7 @@ const openCalendar = () => {
           <button class="btn btn--secondary theme-toggle" @click="toggleTheme">
             <span class="theme-icon">{{ themeIcon }}</span>
           </button>
-          <button class="btn btn--outline" @click="openCalendar">
-            📅 Calendrier
-          </button>
+          <button class="btn btn--outline" @click="openCalendar">📅 Calendrier</button>
         </div>
       </div>
     </div>

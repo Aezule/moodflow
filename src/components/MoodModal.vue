@@ -14,7 +14,7 @@ const show = computed(() => state.showMoodModal);
 const selectedMood = computed(() => state.moodDraft.mood);
 const note = computed({
   get: () => state.moodDraft.note,
-  set: value => controller.setMoodDraftNote(value)
+  set: (value) => controller.setMoodDraftNote(value),
 });
 const dateLabel = controller.selectedDateLabel;
 const hasEntry = controller.hasSelectedEntry;
@@ -31,7 +31,7 @@ const remove = () => {
   controller.deleteSelectedMood();
 };
 
-const selectMood = value => {
+const selectMood = (value) => {
   controller.setMoodDraftMood(value);
 };
 </script>
@@ -65,15 +65,15 @@ const selectMood = value => {
           <label class="form-label" for="moodNote">Note personnelle (optionnelle)</label>
           <textarea
             id="moodNote"
+            v-model="note"
             class="form-control"
             placeholder="Décrivez votre journée, vos pensées..."
-            v-model="note"
           ></textarea>
         </div>
         <div class="modal__actions">
           <button class="btn btn--secondary" @click="close">Annuler</button>
           <button class="btn btn--primary" @click="save">Enregistrer</button>
-          <button class="btn btn--outline" v-if="hasEntry" @click="remove">Supprimer</button>
+          <button v-if="hasEntry" class="btn btn--outline" @click="remove">Supprimer</button>
         </div>
       </div>
     </div>
