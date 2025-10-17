@@ -2,6 +2,52 @@
 
 Moodflow est une application Vue 3 + Vite qui permet de consigner ses humeurs, de visualiser des tendances au fil du temps et d'explorer des analyses assistées par la météo.
 
+## Site hebergé sur Vercel 
+
+- [MoodFlow+](https://moodflowforynov.vercel.app/)
+chaque push sur master fais une mise en prod automatique 
+
+
+### Infra
+
+![Infra](public/Infrastructure.png)
+
+
+### Flux de données
+![Flux de données](public/Flux_Donnée.png)
+
+
+### Modèle de données simplifié 
+![Modèle de données](image-1.png)
+Les données sont stockées dans le navigateur dans le localstorage avec un format Clé/Valeur.
+Aucune base distante utilisée
+
+
+## Techno utilisé 
+- Pour le front le framework Vue.js est utilisé pour des raisons de simplicité et que l'application est seulement une seule page
+- Pour les graph la librairie chart.js a été utilisé (doc simple)
+- ESLint + Prettier pour le formattage et la qualité du code
+
+## rôles des membres 
+
+
+- Dany (Front)
+- Leo (Front)
+- Slim (Archi + graph)
+- Matthieu (Graph)
+- Alec (Graph)
+- Théo (Front + api météo + prédiction )
+
+
+## Bonus implémenté 
+- Api météo
+- Thème sombre/clair automatique 
+- Calendrier mensuelle 
+- Prédiction 
+
+## Choix UX
+- Un UI/UX simple d'utilisation et facile a comprendre avec des hover
+
 ## Aperçu rapide
 
 - Suivi quotidien de l'humeur avec notes personnelles et palette d'émojis.
@@ -47,3 +93,5 @@ npm run format:fix   # Ré-écrit les fichiers avec Prettier
 - [Documentation Vue 3](https://vuejs.org/guide/introduction.html)
 - [Vite](https://vite.dev/config/)
 - [Chart.js](https://www.chartjs.org/docs/latest/)
+
+
