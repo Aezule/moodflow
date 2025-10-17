@@ -38,13 +38,13 @@ const currentModelData = computed(() => {
   if (!prediction.value.allModels) return null;
   
   if (selectedModelTab.value === 'best') {
-    // Retourner le meilleur
+    // Retourner le meilleur basé sur Test R²
     const models = [
       { key: 'linear', ...prediction.value.allModels.linear },
       { key: 'knn', ...prediction.value.allModels.knn },
       { key: 'tree', ...prediction.value.allModels.tree }
     ];
-    return models.reduce((best, curr) => curr.r2 > best.r2 ? curr : best);
+    return models.reduce((best, curr) => curr.testR2 > best.testR2 ? curr : best);
   }
   
   return prediction.value.allModels[selectedModelTab.value];
@@ -487,13 +487,13 @@ onBeforeUnmount(() => {
           </p>
           <div class="prediction-confidence">
             <div class="confidence-bar">
-              <div class="confidence-fill" :style="{ width: `${(prediction.modelMetrics?.r2 || 0) * 100}%` }"></div>
+              <div class="confidence-fill" :style="{ width: `${(prediction.modelMetrics?.testR2 || 0) * 100}%` }"></div>
             </div>
             <div class="confidence-label">
-              <strong>Fiabilité de la prédiction :</strong> 
-              <span class="confidence-value">{{ ((prediction.modelMetrics?.r2 || 0) * 100).toFixed(0) }}%</span>
+              <strong>Fiabilité de la prédiction (Test) :</strong> 
+              <span class="confidence-value">{{ ((prediction.modelMetrics?.testR2 || 0) * 100).toFixed(0) }}%</span>
               <span class="confidence-desc">
-                {{ prediction.modelMetrics?.r2 > 0.8 ? '🌟 Excellente' : prediction.modelMetrics?.r2 > 0.6 ? '👍 Bonne' : '✅ Correcte' }}
+                {{ prediction.modelMetrics?.testR2 > 0.8 ? '🌟 Excellente' : prediction.modelMetrics?.testR2 > 0.6 ? '👍 Bonne' : '✅ Correcte' }}
               </span>
             </div>
           </div>
@@ -550,8 +550,8 @@ onBeforeUnmount(() => {
                 <h5>🏆 Meilleure prédiction automatique</h5>
                 <p>L'IA a testé 3 méthodes différentes et a sélectionné celle qui est la plus précise pour vous : <strong>{{ currentModelData.name }}</strong></p>
                 <div class="accuracy-badge">
-                  <span class="badge-label">Précision :</span>
-                  <span class="badge-value">{{ (currentModelData.r2 * 100).toFixed(0) }}%</span>
+                  <span class="badge-label">Précision (Test) :</span>
+                  <span class="badge-value">{{ (currentModelData.testR2 * 100).toFixed(0) }}%</span>
                 </div>
               </div>
               
@@ -578,15 +578,15 @@ onBeforeUnmount(() => {
               <div class="quick-stat">
                 <span class="quick-stat__icon">📊</span>
                 <div class="quick-stat__content">
-                  <div class="quick-stat__label">Précision</div>
-                  <div class="quick-stat__value">{{ (currentModelData.r2 * 100).toFixed(0) }}%</div>
+                  <div class="quick-stat__label">Précision (Test)</div>
+                  <div class="quick-stat__value">{{ (currentModelData.testR2 * 100).toFixed(0) }}%</div>
                 </div>
               </div>
               <div class="quick-stat">
                 <span class="quick-stat__icon">⚡</span>
                 <div class="quick-stat__content">
                   <div class="quick-stat__label">Marge d'erreur</div>
-                  <div class="quick-stat__value">±{{ currentModelData.rmse.toFixed(1) }}</div>
+                  <div class="quick-stat__value">±{{ currentModelData.testRMSE.toFixed(1) }}</div>
                 </div>
               </div>
             </div>
@@ -612,63 +612,63 @@ onBeforeUnmount(() => {
           <div class="comparison-cards">
             <div 
               class="comparison-card"
-              :class="{ 'comparison-card--best': prediction.allModels.linear.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+              :class="{ 'comparison-card--best': prediction.allModels.linear.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2) }"
             >
               <div class="comparison-card__header">
                 <span class="comparison-card__icon">📈</span>
                 <span class="comparison-card__name">Analyse par tendances</span>
-                <span v-if="prediction.allModels.linear.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+                <span v-if="prediction.allModels.linear.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2)" class="winner-badge">🏆 Gagnant</span>
               </div>
               <div class="comparison-card__score">
                 <div class="score-bar">
-                  <div class="score-fill" :style="{ width: `${prediction.allModels.linear.r2 * 100}%` }"></div>
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.linear.testR2 * 100}%` }"></div>
                 </div>
-                <div class="score-value">{{ (prediction.allModels.linear.r2 * 100).toFixed(1) }}% de précision</div>
+                <div class="score-value">{{ (prediction.allModels.linear.testR2 * 100).toFixed(1) }}% de précision (Test)</div>
               </div>
               <div class="comparison-card__details">
-                <span>Erreur : ±{{ prediction.allModels.linear.rmse.toFixed(2) }}</span>
+                <span>Erreur : ±{{ prediction.allModels.linear.testRMSE.toFixed(2) }}</span>
                 <span class="tech-detail">(Régression Linéaire)</span>
               </div>
             </div>
             
             <div 
               class="comparison-card"
-              :class="{ 'comparison-card--best': prediction.allModels.knn.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+              :class="{ 'comparison-card--best': prediction.allModels.knn.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2) }"
             >
               <div class="comparison-card__header">
                 <span class="comparison-card__icon">🎯</span>
                 <span class="comparison-card__name">Jours similaires</span>
-                <span v-if="prediction.allModels.knn.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+                <span v-if="prediction.allModels.knn.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2)" class="winner-badge">🏆 Gagnant</span>
               </div>
               <div class="comparison-card__score">
                 <div class="score-bar">
-                  <div class="score-fill" :style="{ width: `${prediction.allModels.knn.r2 * 100}%` }"></div>
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.knn.testR2 * 100}%` }"></div>
                 </div>
-                <div class="score-value">{{ (prediction.allModels.knn.r2 * 100).toFixed(1) }}% de précision</div>
+                <div class="score-value">{{ (prediction.allModels.knn.testR2 * 100).toFixed(1) }}% de précision (Test)</div>
               </div>
               <div class="comparison-card__details">
-                <span>Erreur : ±{{ prediction.allModels.knn.rmse.toFixed(2) }}</span>
+                <span>Erreur : ±{{ prediction.allModels.knn.testRMSE.toFixed(2) }}</span>
                 <span class="tech-detail">(K-Nearest Neighbors)</span>
               </div>
             </div>
             
             <div 
               class="comparison-card"
-              :class="{ 'comparison-card--best': prediction.allModels.tree.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2) }"
+              :class="{ 'comparison-card--best': prediction.allModels.tree.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2) }"
             >
               <div class="comparison-card__header">
                 <span class="comparison-card__icon">🌳</span>
                 <span class="comparison-card__name">Scénarios</span>
-                <span v-if="prediction.allModels.tree.r2 === Math.max(prediction.allModels.linear.r2, prediction.allModels.knn.r2, prediction.allModels.tree.r2)" class="winner-badge">🏆 Gagnant</span>
+                <span v-if="prediction.allModels.tree.testR2 === Math.max(prediction.allModels.linear.testR2, prediction.allModels.knn.testR2, prediction.allModels.tree.testR2)" class="winner-badge">🏆 Gagnant</span>
               </div>
               <div class="comparison-card__score">
                 <div class="score-bar">
-                  <div class="score-fill" :style="{ width: `${prediction.allModels.tree.r2 * 100}%` }"></div>
+                  <div class="score-fill" :style="{ width: `${prediction.allModels.tree.testR2 * 100}%` }"></div>
                 </div>
-                <div class="score-value">{{ (prediction.allModels.tree.r2 * 100).toFixed(1) }}% de précision</div>
+                <div class="score-value">{{ (prediction.allModels.tree.testR2 * 100).toFixed(1) }}% de précision (Test)</div>
               </div>
               <div class="comparison-card__details">
-                <span>Erreur : ±{{ prediction.allModels.tree.rmse.toFixed(2) }}</span>
+                <span>Erreur : ±{{ prediction.allModels.tree.testRMSE.toFixed(2) }}</span>
                 <span class="tech-detail">(Decision Tree)</span>
               </div>
             </div>

@@ -1841,6 +1841,34 @@ class LinearRegression {
 }
 
 /**
+ * Calcule le Mean Squared Error
+ */
+function calculateMSE(y_true, y_pred) {
+  const n = y_true.length;
+  return y_true.reduce((sum, y, i) => {
+    return sum + Math.pow(y - y_pred[i], 2);
+  }, 0) / n;
+}
+
+/**
+ * Calcule le R² Score
+ */
+function calculateR2(y_true, y_pred) {
+  const n = y_true.length;
+  const mean_y = y_true.reduce((a, b) => a + b, 0) / n;
+  
+  const ss_tot = y_true.reduce((sum, y) => {
+    return sum + Math.pow(y - mean_y, 2);
+  }, 0);
+  
+  const ss_res = y_true.reduce((sum, y, i) => {
+    return sum + Math.pow(y - y_pred[i], 2);
+  }, 0);
+  
+  return 1 - ss_res / ss_tot;
+}
+
+/**
  * Entraîne les 3 modèles et sélectionne le meilleur
  * @param {Object} state - État de l'application
  * @param {Object} forecast - Prévisions météo de l'API
@@ -1869,7 +1897,17 @@ export function trainAllModelsAndPredict(state, forecast) {
   
   const y = trainingData.map((d) => d.mood);
   
-  // 3. ENTRAÎNER LES 3 MODÈLES
+  // 3. SPLIT TEMPOREL TRAIN/TEST (80/20)
+  const splitRatio = 0.8;
+  const splitIndex = Math.floor(X.length * splitRatio);
+  
+  const X_train = X.slice(0, splitIndex);
+  const y_train = y.slice(0, splitIndex);
+  const X_test = X.slice(splitIndex);
+  const y_test = y.slice(splitIndex);
+  
+  
+  // 4. ENTRAÎNER LES 3 MODÈLES
   console.log('\n📚 ENTRAÎNEMENT DES MODÈLES...');
   
   const startTime = performance.now();
@@ -1877,20 +1915,29 @@ export function trainAllModelsAndPredict(state, forecast) {
   // Modèle 1: Régression Linéaire
   console.log('1️⃣ Régression Linéaire...');
   const linearModel = new LinearRegression();
-  linearModel.fit(X, y);
-  console.log(`   ✅ R²=${(linearModel.r2Score * 100).toFixed(1)}% MSE=${linearModel.meanSquaredError.toFixed(3)}`);
+  linearModel.fit(X_train, y_train);
+  const linearTestPred = linearModel.predict(X_test);
+  const linearTestR2 = calculateR2(y_test, linearTestPred);
+  const linearTestMSE = calculateMSE(y_test, linearTestPred);
+  console.log(`   Train: R²=${(linearModel.r2Score * 100).toFixed(1)}% | Test: R²=${(linearTestR2 * 100).toFixed(1)}% MSE=${linearTestMSE.toFixed(3)}`);
   
   // Modèle 2: KNN
   console.log('2️⃣ K-Nearest Neighbors (k=5)...');
   const knnModel = new KNNRegressor(5);
-  knnModel.fit(X, y);
-  console.log(`   ✅ R²=${(knnModel.r2Score * 100).toFixed(1)}% MSE=${knnModel.meanSquaredError.toFixed(3)}`);
+  knnModel.fit(X_train, y_train);
+  const knnTestPred = knnModel.predict(X_test);
+  const knnTestR2 = calculateR2(y_test, knnTestPred);
+  const knnTestMSE = calculateMSE(y_test, knnTestPred);
+  console.log(`   Train: R²=${(knnModel.r2Score * 100).toFixed(1)}% | Test: R²=${(knnTestR2 * 100).toFixed(1)}% MSE=${knnTestMSE.toFixed(3)}`);
   
   // Modèle 3: Decision Tree
   console.log('3️⃣ Decision Tree (depth=5)...');
   const treeModel = new DecisionTreeRegressor(5, 10);
-  treeModel.fit(X, y);
-  console.log(`   ✅ R²=${(treeModel.r2Score * 100).toFixed(1)}% MSE=${treeModel.meanSquaredError.toFixed(3)}`);
+  treeModel.fit(X_train, y_train);
+  const treeTestPred = treeModel.predict(X_test);
+  const treeTestR2 = calculateR2(y_test, treeTestPred);
+  const treeTestMSE = calculateMSE(y_test, treeTestPred);
+  console.log(`   Train: R²=${(treeModel.r2Score * 100).toFixed(1)}% | Test: R²=${(treeTestR2 * 100).toFixed(1)}% MSE=${treeTestMSE.toFixed(3)}`);
   
   const trainingTime = performance.now() - startTime;
   console.log(`\n⏱️ Temps total: ${trainingTime.toFixed(0)}ms`);
@@ -1955,18 +2002,45 @@ export function trainAllModelsAndPredict(state, forecast) {
     });
   });
   
-  // 5. DÉTERMINER LE MEILLEUR MODÈLE
+  // 5. DÉTERMINER LE MEILLEUR MODÈLE (basé sur R² de TEST)
   const models = [
-    { name: 'Régression Linéaire', r2: linearModel.r2Score, mse: linearModel.meanSquaredError, predictions: linearPredictions, model: linearModel },
-    { name: 'K-Nearest Neighbors', r2: knnModel.r2Score, mse: knnModel.meanSquaredError, predictions: knnPredictions, model: knnModel },
-    { name: 'Decision Tree', r2: treeModel.r2Score, mse: treeModel.meanSquaredError, predictions: treePredictions, model: treeModel }
+    { 
+      name: 'Régression Linéaire', 
+      trainR2: linearModel.r2Score, 
+      testR2: linearTestR2,
+      trainMSE: linearModel.meanSquaredError,
+      testMSE: linearTestMSE,
+      predictions: linearPredictions, 
+      model: linearModel 
+    },
+    { 
+      name: 'K-Nearest Neighbors', 
+      trainR2: knnModel.r2Score, 
+      testR2: knnTestR2,
+      trainMSE: knnModel.meanSquaredError,
+      testMSE: knnTestMSE,
+      predictions: knnPredictions, 
+      model: knnModel 
+    },
+    { 
+      name: 'Decision Tree', 
+      trainR2: treeModel.r2Score, 
+      testR2: treeTestR2,
+      trainMSE: treeModel.meanSquaredError,
+      testMSE: treeTestMSE,
+      predictions: treePredictions, 
+      model: treeModel 
+    }
   ];
   
+  // Sélection basée sur R² de TEST (plus fiable que le train)
   const bestModel = models.reduce((best, current) => 
-    current.r2 > best.r2 ? current : best
+    current.testR2 > best.testR2 ? current : best
   );
   
-  console.log(`\n🏆 MEILLEUR MODÈLE: ${bestModel.name} (R²=${(bestModel.r2 * 100).toFixed(1)}%)`);
+  console.log(`\n🏆 MEILLEUR MODÈLE (Test R²): ${bestModel.name}`);
+  console.log(`   Test R²: ${(bestModel.testR2 * 100).toFixed(1)}%`);
+  console.log(`   Écart Train-Test: ${Math.abs((bestModel.trainR2 - bestModel.testR2) * 100).toFixed(1)}% ${Math.abs(bestModel.trainR2 - bestModel.testR2) < 0.05 ? '✅ Bon' : '⚠️ Overfitting'}`);
   
   // 6. PRÉPARER LES RÉSULTATS
   const featureNames = [
@@ -1991,8 +2065,8 @@ export function trainAllModelsAndPredict(state, forecast) {
   const avgMoodLevel = moodLevels[Math.round(avgPrediction)] || moodLevels[3];
   
   const reasons = [
-    `🏆 Meilleur modèle: ${bestModel.name} avec R² = ${(bestModel.r2 * 100).toFixed(1)}% sur ${trainingData.length} jours`,
-    `📊 Comparaison: Linear=${(models[0].r2 * 100).toFixed(1)}%, KNN=${(models[1].r2 * 100).toFixed(1)}%, Tree=${(models[2].r2 * 100).toFixed(1)}%`,
+    `🏆 Meilleur modèle: ${bestModel.name} avec Test R² = ${(bestModel.testR2 * 100).toFixed(1)}%`,
+    `📊 Comparaison (Test R²): Linear=${(models[0].testR2 * 100).toFixed(1)}%, KNN=${(models[1].testR2 * 100).toFixed(1)}%, Tree=${(models[2].testR2 * 100).toFixed(1)}%`,
     `🎯 Prédiction moyenne: ${avgMoodLevel.emoji} ${avgMoodLevel.label} (${avgPrediction.toFixed(2)}/5)`,
   ];
   
@@ -2001,10 +2075,13 @@ export function trainAllModelsAndPredict(state, forecast) {
     reasons,
     baseline: moodLevels[Math.round(trainingData[trainingData.length - 1].mood)] || moodLevels[3],
     modelMetrics: {
-      r2: bestModel.r2,
-      mse: bestModel.mse,
-      rmse: Math.sqrt(bestModel.mse),
-      trainingSize: trainingData.length,
+      trainR2: bestModel.trainR2,
+      testR2: bestModel.testR2,
+      trainMSE: bestModel.trainMSE,
+      testMSE: bestModel.testMSE,
+      testRMSE: Math.sqrt(bestModel.testMSE),
+      trainingSize: X_train.length,
+      testSize: X_test.length,
       trainingTime: trainingTime,
       bestModelName: bestModel.name,
     },
@@ -2012,9 +2089,11 @@ export function trainAllModelsAndPredict(state, forecast) {
       linear: {
         name: 'Régression Linéaire',
         predictions: linearPredictions,
-        r2: linearModel.r2Score,
-        mse: linearModel.meanSquaredError,
-        rmse: Math.sqrt(linearModel.meanSquaredError),
+        trainR2: linearModel.r2Score,
+        testR2: linearTestR2,
+        trainMSE: linearModel.meanSquaredError,
+        testMSE: linearTestMSE,
+        testRMSE: Math.sqrt(linearTestMSE),
         coefficients: linearModel.coefficients,
         intercept: linearModel.intercept,
         featureImportances: importances,
@@ -2022,17 +2101,21 @@ export function trainAllModelsAndPredict(state, forecast) {
       knn: {
         name: 'K-Nearest Neighbors (k=5)',
         predictions: knnPredictions,
-        r2: knnModel.r2Score,
-        mse: knnModel.meanSquaredError,
-        rmse: Math.sqrt(knnModel.meanSquaredError),
+        trainR2: knnModel.r2Score,
+        testR2: knnTestR2,
+        trainMSE: knnModel.meanSquaredError,
+        testMSE: knnTestMSE,
+        testRMSE: Math.sqrt(knnTestMSE),
         k: knnModel.k,
       },
       tree: {
         name: 'Decision Tree (depth=5)',
         predictions: treePredictions,
-        r2: treeModel.r2Score,
-        mse: treeModel.meanSquaredError,
-        rmse: Math.sqrt(treeModel.meanSquaredError),
+        trainR2: treeModel.r2Score,
+        testR2: treeTestR2,
+        trainMSE: treeModel.meanSquaredError,
+        testMSE: treeTestMSE,
+        testRMSE: Math.sqrt(treeTestMSE),
         maxDepth: treeModel.maxDepth,
       },
     },
